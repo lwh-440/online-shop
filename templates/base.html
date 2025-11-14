@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}在线购物网站{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-container">
+                <a href="{{ url_for('index') }}" class="navbar-brand">在线购物</a>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">首页</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('product_list') }}" class="nav-link {% if request.endpoint == 'product_list' %}active{% endif %}">商品</a>
+                    </li>
+                    
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <a href="{{ url_for('cart') }}" class="nav-link {% if request.endpoint == 'cart' %}active{% endif %}">购物车</a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('order_history') }}" class="nav-link {% if request.endpoint == 'order_history' %}active{% endif %}">我的订单</a>
+                        </li>
+                        
+                        {% if current_user.is_admin %}
+                            <li class="nav-item">
+                                <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if request.endpoint.startswith('admin') %}active{% endif %}">管理后台</a>
+                            </li>
+                        {% endif %}
+                        
+                        <li class="nav-item">
+                            <span class="nav-link">欢迎, {{ current_user.username }}</span>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('logout') }}" class="nav-link">退出</a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a href="{{ url_for('login') }}" class="nav-link {% if request.endpoint == 'login' %}active{% endif %}">登录</a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('register') }}" class="nav-link {% if request.endpoint == 'register' %}active{% endif %}">注册</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 消息提示 -->
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'error' if category == 'error' else 'success' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- 主要内容 -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 在线购物网站. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

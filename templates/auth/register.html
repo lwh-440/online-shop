@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}注册 - 在线购物网站{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 400px; margin: 3rem auto;">
+    <div class="card">
+        <div class="card-header" style="text-align: center;">
+            <h2>用户注册</h2>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('register') }}" class="needs-validation">
+                <div class="form-group">
+                    <label for="username" class="form-label">用户名</label>
+                    <input type="text" class="form-control" id="username" name="username" required minlength="3" maxlength="20">
+                </div>
+                
+                <div class="form-group">
+                    <label for="email" class="form-label">邮箱</label>
+                    <input type="email" class="form-control" id="email" name="email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password" class="form-label">密码</label>
+                    <input type="password" class="form-control" id="password" name="password" required minlength="6">
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">注册</button>
+            </form>
+            
+            <div style="text-align: center; margin-top: 1.5rem;">
+                <p>已有账号？ <a href="{{ url_for('login') }}">立即登录</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}订单详情 - 在线购物网站{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 style="margin: 2rem 0;">订单详情 #{{ order.id }}</h1>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>订单信息</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                <div>
+                    <strong>订单状态:</strong>
+                    <span class="status-{{ order.status }}">
+                        {% if order.status == 'pending' %}待付款
+                        {% elif order.status == 'paid' %}已付款
+                        {% elif order.status == 'shipped' %}已发货
+                        {% elif order.status == 'completed' %}已完成
+                        {% elif order.status == 'cancelled' %}已取消
+                        {% else %}{{ order.status }}{% endif %}
+                    </span>
+                </div>
+                <div>
+                    <strong>下单时间:</strong> {{ order.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                </div>
+                <div>
+                    <strong>总金额:</strong> ¥{{ "%.2f"|format(order.total_amount) }}
+                </div>
+                <div>
+                    <strong>收货地址:</strong> {{ order.address }}
+                </div>
+                <div>
+                    <strong>联系电话:</strong> {{ order.phone }}
+                </div>
+            </div>
+
+            <h4>订单商品</h4>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>商品</th>
+                        <th>单价</th>
+                        <th>数量</th>
+                        <th>小计</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center;">
+                                    <img src="{{ url_for('static', filename=item.image_url) }}" alt="{{ item.name }}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 1rem;">
+                                    {{ item.name }}
+                                </div>
+                            </td>
+                            <td>¥{{ "%.2f"|format(item.price) }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>¥{{ "%.2f"|format(item.price * item.quantity) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div style="margin-top: 2rem;">
+        <a href="{{ url_for('order_history') }}" class="btn btn-outline">返回订单列表</a>
+    </div>
+</div>
+{% endblock %}

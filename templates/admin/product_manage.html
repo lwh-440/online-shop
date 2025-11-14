@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}商品管理 - 在线购物网站{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div style="display: flex;">
+        <!-- 侧边栏 -->
+        <div class="admin-sidebar" style="width: 250px; min-height: calc(100vh - 56px);">
+            <ul class="navbar-nav" style="padding: 1rem 0;">
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_dashboard') }}" class="nav-link">仪表盘</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_products') }}" class="nav-link active">商品管理</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_orders') }}" class="nav-link">订单管理</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_stats') }}" class="nav-link">销售统计</a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 主内容区 -->
+        <div style="flex: 1; padding: 2rem;">
+            <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 2rem;">
+                <h1>商品管理</h1>
+                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addProductModal">
+                    添加商品
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>图片</th>
+                                <th>商品名称</th>
+                                <th>价格</th>
+                                <th>库存</th>
+                                <th>分类</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in products %}
+                                <tr>
+                                    <td>
+                                        <img src="{{ url_for('static', filename=product.image_url) }}" alt="{{ product.name }}" style="width: 50px; height: 50px; object-fit: cover;">
+                                    </td>
+                                    <td>{{ product.name }}</td>
+                                    <td>¥{{ "%.2f"|format(product.price) }}</td>
+                                    <td>{{ product.stock }}</td>
+                                    <td>{{ product.category }}</td>
+                                    <td>
+                                        <a href="{{ url_for('edit_product', product_id=product.id) }}" class="btn btn-sm btn-primary">编辑</a>
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete({{ product.id }}, '{{ product.name }}')">删除</button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加商品模态框 -->
+<div class="modal" id="addProductModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加商品</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form method="POST" action="{{ url_for('admin_products') }}" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="name" class="form-label">商品名称</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="description" class="form-label">商品描述</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="price" class="form-label">价格</label>
+                        <input type="number" step="0.01" class="form-control" id="price" name="price" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="stock" class="form-label">库存</label>
+                        <input type="number" class="form-control" id="stock" name="stock" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="category" class="form-label">分类</label>
+                        <select class="form-control" id="category" name="category" required>
+                            <option value="electronics">电子产品</option>
+                            <option value="clothing">服装</option>
+                            <option value="shoes">鞋类</option>
+                            <option value="books">图书</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="image" class="form-label">商品图片</label>
+                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">添加商品</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(productId, productName) {
+    if (confirm('确定要删除商品 "' + productName + '" 吗？')) {
+        window.location.href = "{{ url_for('delete_product', product_id=0) }}".replace('0', productId);
+    }
+}
+</script>
+{% endblock %}

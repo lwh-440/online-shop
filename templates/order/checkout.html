@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}结算 - 在线购物网站{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 style="margin: 2rem 0;">订单结算</h1>
+    
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 3rem;">
+        <!-- 收货信息表单 -->
+        <div class="card">
+            <div class="card-header">
+                <h3>收货信息</h3>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('checkout') }}">
+                    <div class="form-group">
+                        <label for="address" class="form-label">收货地址</label>
+                        <textarea id="address" name="address" class="form-control" rows="3" required placeholder="请输入详细的收货地址"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone" class="form-label">联系电话</label>
+                        <input type="tel" id="phone" name="phone" class="form-control" required placeholder="请输入联系电话">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-size: 1.1rem;">提交订单</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 订单摘要 -->
+        <div class="card">
+            <div class="card-header">
+                <h3>订单摘要</h3>
+            </div>
+            <div class="card-body">
+                {% for item in cart_items %}
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>{{ item.name }} × {{ item.quantity }}</span>
+                        <span>¥{{ "%.2f"|format(item.price * item.quantity) }}</span>
+                    </div>
+                {% endfor %}
+                
+                <hr style="margin: 1rem 0;">
+                
+                <div style="display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: bold;">
+                    <span>总计:</span>
+                    <span>¥{{ "%.2f"|format(total) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

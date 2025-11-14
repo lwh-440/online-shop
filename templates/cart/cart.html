@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}购物车 - 在线购物网站{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 style="margin: 2rem 0;">购物车</h1>
+    
+    {% if cart_items %}
+        <div class="card">
+            <div class="card-body">
+                {% for item in cart_items %}
+                    <div class="cart-item">
+                        <img src="{{ url_for('static', filename=item.image_url) }}" alt="{{ item.name }}" class="cart-item-image">
+                        
+                        <div class="cart-item-details">
+                            <div class="cart-item-name">{{ item.name }}</div>
+                            <div class="cart-item-price">¥{{ "%.2f"|format(item.price) }}</div>
+                        </div>
+                        
+                        <div class="cart-item-quantity">
+                            <form method="POST" action="{{ url_for('update_cart') }}" style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="hidden" name="cart_item_id" value="{{ item.id }}">
+                                <button type="button" class="btn btn-sm btn-outline decrease">-</button>
+                                <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="{{ item.stock }}" class="form-control quantity-input">
+                                <button type="button" class="btn btn-sm btn-outline increase">+</button>
+                                <button type="submit" class="btn btn-sm btn-primary" style="margin-left: 1rem;">更新</button>
+                            </form>
+                        </div>
+                        
+                        <div class="cart-item-subtotal" style="font-weight: bold;">
+                            ¥{{ "%.2f"|format(item.price * item.quantity) }}
+                        </div>
+                        
+                        <form method="POST" action="{{ url_for('update_cart') }}" style="margin-left: 1rem;">
+                            <input type="hidden" name="cart_item_id" value="{{ item.id }}">
+                            <input type="hidden" name="quantity" value="0">
+                            <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                        </form>
+                    </div>
+                {% endfor %}
+                
+                <div class="cart-total">
+                    总计: ¥{{ "%.2f"|format(total) }}
+                </div>
+                
+                <div style="text-align: right; margin-top: 2rem;">
+                    <a href="{{ url_for('product_list') }}" class="btn btn-outline" style="margin-right: 1rem;">继续购物</a>
+                    <a href="{{ url_for('checkout') }}" class="btn btn-primary">去结算</a>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 3rem;">
+            <p style="font-size: 1.2rem; color: #666; margin-bottom: 2rem;">购物车为空</p>
+            <a href="{{ url_for('product_list') }}" class="btn btn-primary">去购物</a>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 数量增减按钮
+    document.querySelectorAll('.increase').forEach(button => {
+        button.addEventListener('click', function() {
+            const input = this.parentElement.querySelector('.quantity-input');
+            if (parseInt(input.value) < parseInt(input.max)) {
+                input.value = parseInt(input.value) + 1;
+            }
+        });
+    });
+    
+    document.querySelectorAll('.decrease').forEach(button => {
+        button.addEventListener('click', function() {
+            const input = this.parentElement.querySelector('.quantity-input');
+            if (parseInt(input.value) > 1) {
+                input.value = parseInt(input.value) - 1;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,637 @@
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask_mysqldb import MySQL
+from flask_mail import Mail, Message
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
+import os
+import datetime
+from config import Config
+from utils.database import init_db, get_db_connection
+from utils.helpers import allowed_file, save_image, delete_image
+
+app = Flask(__name__)
+app.config.from_object(Config)
+
+# 初始化扩展
+mysql = MySQL(app)
+mail = Mail(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+login_manager.login_message = '请先登录'
+
+# 用户加载回调
+@login_manager.user_loader
+def load_user(user_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+    user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return user if user else None
+
+class User:
+    def __init__(self, id, username, email, is_admin=False):
+        self.id = id
+        self.username = username
+        self.email = email
+        self.is_admin = is_admin
+
+    def get_id(self):
+        return str(self.id)
+
+    def is_authenticated(self):
+        return True
+
+    def is_active(self):
+        return True
+
+    def is_anonymous(self):
+        return False
+
+# 路由定义
+@app.route('/')
+def index():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM products WHERE stock > 0 ORDER BY created_at DESC LIMIT 8")
+    products = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return render_template('index.html', products=products)
+
+# 用户认证路由
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 检查用户是否已存在
+        cursor.execute("SELECT * FROM users WHERE username = %s OR email = %s", (username, email))
+        existing_user = cursor.fetchone()
+        
+        if existing_user:
+            flash('用户名或邮箱已存在', 'error')
+            return render_template('auth/register.html')
+        
+        # 创建新用户
+        hashed_password = generate_password_hash(password)
+        cursor.execute(
+            "INSERT INTO users (username, email, password, created_at) VALUES (%s, %s, %s, %s)",
+            (username, email, hashed_password, datetime.datetime.now())
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        flash('注册成功，请登录', 'success')
+        return redirect(url_for('login'))
+    
+    return render_template('auth/register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        user = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if user and check_password_hash(user['password'], password):
+            user_obj = User(user['id'], user['username'], user['email'], user['is_admin'])
+            login_user(user_obj, remember=True)
+            flash('登录成功', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('用户名或密码错误', 'error')
+    
+    return render_template('auth/login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('已退出登录', 'success')
+    return redirect(url_for('index'))
+
+# 商品展示路由
+@app.route('/products')
+def product_list():
+    search = request.args.get('search', '')
+    category = request.args.get('category', '')
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    query = "SELECT * FROM products WHERE stock > 0"
+    params = []
+    
+    if search:
+        query += " AND name LIKE %s"
+        params.append(f'%{search}%')
+    
+    if category:
+        query += " AND category = %s"
+        params.append(category)
+    
+    query += " ORDER BY created_at DESC"
+    
+    cursor.execute(query, params)
+    products = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    return render_template('product/list.html', products=products, search=search, category=category)
+
+@app.route('/product/<int:product_id>')
+def product_detail(product_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM products WHERE id = %s", (product_id,))
+    product = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    if not product:
+        flash('商品不存在', 'error')
+        return redirect(url_for('product_list'))
+    
+    return render_template('product/detail.html', product=product)
+
+# 购物车路由
+@app.route('/cart')
+@login_required
+def cart():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT c.*, p.name, p.price, p.image_url, p.stock 
+        FROM cart_items c 
+        JOIN products p ON c.product_id = p.id 
+        WHERE c.user_id = %s
+    """, (current_user.id,))
+    cart_items = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    total = sum(item['price'] * item['quantity'] for item in cart_items)
+    return render_template('cart/cart.html', cart_items=cart_items, total=total)
+
+@app.route('/add_to_cart', methods=['POST'])
+@login_required
+def add_to_cart():
+    product_id = request.form['product_id']
+    quantity = int(request.form.get('quantity', 1))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 检查商品库存
+    cursor.execute("SELECT stock FROM products WHERE id = %s", (product_id,))
+    product = cursor.fetchone()
+    
+    if not product or product['stock'] < quantity:
+        flash('库存不足', 'error')
+        return redirect(url_for('product_detail', product_id=product_id))
+    
+    # 检查购物车是否已有该商品
+    cursor.execute("SELECT * FROM cart_items WHERE user_id = %s AND product_id = %s", 
+                  (current_user.id, product_id))
+    existing_item = cursor.fetchone()
+    
+    if existing_item:
+        new_quantity = existing_item['quantity'] + quantity
+        cursor.execute("UPDATE cart_items SET quantity = %s WHERE id = %s", 
+                      (new_quantity, existing_item['id']))
+    else:
+        cursor.execute(
+            "INSERT INTO cart_items (user_id, product_id, quantity) VALUES (%s, %s, %s)",
+            (current_user.id, product_id, quantity)
+        )
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    flash('商品已添加到购物车', 'success')
+    return redirect(url_for('cart'))
+
+@app.route('/update_cart', methods=['POST'])
+@login_required
+def update_cart():
+    cart_item_id = request.form['cart_item_id']
+    quantity = int(request.form['quantity'])
+    
+    if quantity <= 0:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM cart_items WHERE id = %s AND user_id = %s", 
+                      (cart_item_id, current_user.id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+    else:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE cart_items SET quantity = %s WHERE id = %s AND user_id = %s", 
+                      (quantity, cart_item_id, current_user.id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+    
+    return redirect(url_for('cart'))
+
+# 订单路由
+@app.route('/checkout', methods=['GET', 'POST'])
+@login_required
+def checkout():
+    if request.method == 'POST':
+        address = request.form['address']
+        phone = request.form['phone']
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 获取购物车商品
+        cursor.execute("""
+            SELECT c.*, p.name, p.price, p.stock 
+            FROM cart_items c 
+            JOIN products p ON c.product_id = p.id 
+            WHERE c.user_id = %s
+        """, (current_user.id,))
+        cart_items = cursor.fetchall()
+        
+        if not cart_items:
+            flash('购物车为空', 'error')
+            return redirect(url_for('cart'))
+        
+        # 检查库存
+        for item in cart_items:
+            if item['stock'] < item['quantity']:
+                flash(f'商品"{item["name"]}"库存不足', 'error')
+                return redirect(url_for('cart'))
+        
+        # 创建订单
+        total_amount = sum(item['price'] * item['quantity'] for item in cart_items)
+        cursor.execute(
+            "INSERT INTO orders (user_id, total_amount, status, address, phone, created_at) VALUES (%s, %s, %s, %s, %s, %s)",
+            (current_user.id, total_amount, 'pending', address, phone, datetime.datetime.now())
+        )
+        order_id = cursor.lastrowid
+        
+        # 创建订单项并更新库存
+        for item in cart_items:
+            cursor.execute(
+                "INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (%s, %s, %s, %s)",
+                (order_id, item['product_id'], item['quantity'], item['price'])
+            )
+            cursor.execute(
+                "UPDATE products SET stock = stock - %s WHERE id = %s",
+                (item['quantity'], item['product_id'])
+            )
+        
+        # 清空购物车
+        cursor.execute("DELETE FROM cart_items WHERE user_id = %s", (current_user.id,))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        # 发送确认邮件
+        try:
+            msg = Message('订单确认 - 在线购物网站',
+                         sender=app.config['MAIL_DEFAULT_SENDER'],
+                         recipients=[current_user.email])
+            msg.body = f'''
+尊敬的 {current_user.username}：
+
+感谢您的订单！订单号：{order_id}
+总金额：¥{total_amount:.2f}
+收货地址：{address}
+联系电话：{phone}
+
+我们将尽快处理您的订单。
+'''
+            mail.send(msg)
+        except Exception as e:
+            print(f"邮件发送失败: {e}")
+        
+        flash('订单创建成功！已发送确认邮件', 'success')
+        return redirect(url_for('order_history'))
+    
+    return render_template('order/checkout.html')
+
+@app.route('/orders')
+@login_required
+def order_history():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM orders WHERE user_id = %s ORDER BY created_at DESC", 
+                  (current_user.id,))
+    orders = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return render_template('order/history.html', orders=orders)
+
+@app.route('/order/<int:order_id>')
+@login_required
+def order_detail(order_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM orders WHERE id = %s AND user_id = %s", 
+                  (order_id, current_user.id))
+    order = cursor.fetchone()
+    
+    if not order:
+        flash('订单不存在', 'error')
+        return redirect(url_for('order_history'))
+    
+    cursor.execute("""
+        SELECT oi.*, p.name, p.image_url 
+        FROM order_items oi 
+        JOIN products p ON oi.product_id = p.id 
+        WHERE oi.order_id = %s
+    """, (order_id,))
+    items = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    return render_template('order/detail.html', order=order, items=items)
+
+# 管理员路由
+@app.route('/admin')
+@login_required
+def admin_dashboard():
+    if not current_user.is_admin:
+        flash('无权访问', 'error')
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 统计信息
+    cursor.execute("SELECT COUNT(*) as count FROM products")
+    product_count = cursor.fetchone()['count']
+    
+    cursor.execute("SELECT COUNT(*) as count FROM orders")
+    order_count = cursor.fetchone()['count']
+    
+    cursor.execute("SELECT COUNT(*) as count FROM users")
+    user_count = cursor.fetchone()['count']
+    
+    cursor.execute("SELECT SUM(total_amount) as revenue FROM orders WHERE status = 'completed'")
+    revenue = cursor.fetchone()['revenue'] or 0
+    
+    cursor.close()
+    conn.close()
+    
+    return render_template('admin/dashboard.html', 
+                         product_count=product_count, 
+                         order_count=order_count, 
+                         user_count=user_count, 
+                         revenue=revenue)
+
+@app.route('/admin/products', methods=['GET', 'POST'])
+@login_required
+def admin_products():
+    if not current_user.is_admin:
+        flash('无权访问', 'error')
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        name = request.form['name']
+        description = request.form['description']
+        price = float(request.form['price'])
+        stock = int(request.form['stock'])
+        category = request.form['category']
+        
+        # 处理图片上传
+        image_url = 'images/default-product.jpg'
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and allowed_file(file.filename):
+                filename = save_image(file)
+                image_url = f'uploads/products/{filename}'
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO products (name, description, price, stock, category, image_url, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (name, description, price, stock, category, image_url, datetime.datetime.now())
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        flash('商品添加成功', 'success')
+        return redirect(url_for('admin_products'))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM products ORDER BY created_at DESC")
+    products = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    return render_template('admin/product_manage.html', products=products)
+
+@app.route('/admin/product/edit/<int:product_id>', methods=['GET', 'POST'])
+@login_required
+def edit_product(product_id):
+    if not current_user.is_admin:
+        flash('无权访问', 'error')
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    if request.method == 'POST':
+        name = request.form['name']
+        description = request.form['description']
+        price = float(request.form['price'])
+        stock = int(request.form['stock'])
+        category = request.form['category']
+        
+        # 处理图片上传
+        image_url = request.form.get('current_image')
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and allowed_file(file.filename):
+                # 删除旧图片（如果不是默认图片）
+                if image_url and 'default-product' not in image_url:
+                    delete_image(image_url)
+                
+                filename = save_image(file)
+                image_url = f'uploads/products/{filename}'
+        
+        cursor.execute(
+            "UPDATE products SET name=%s, description=%s, price=%s, stock=%s, category=%s, image_url=%s WHERE id=%s",
+            (name, description, price, stock, category, image_url, product_id)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        flash('商品更新成功', 'success')
+        return redirect(url_for('admin_products'))
+    
+    cursor.execute("SELECT * FROM products WHERE id = %s", (product_id,))
+    product = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    if not product:
+        flash('商品不存在', 'error')
+        return redirect(url_for('admin_products'))
+    
+    return render_template('admin/product_edit.html', product=product)
+
+@app.route('/admin/product/delete/<int:product_id>')
+@login_required
+def delete_product(product_id):
+    if not current_user.is_admin:
+        flash('无权访问', 'error')
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 获取商品图片路径
+    cursor.execute("SELECT image_url FROM products WHERE id = %s", (product_id,))
+    product = cursor.fetchone()
+    
+    if product and product['image_url'] and 'default-product' not in product['image_url']:
+        delete_image(product['image_url'])
+    
+    cursor.execute("DELETE FROM products WHERE id = %s", (product_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    flash('商品删除成功', 'success')
+    return redirect(url_for('admin_products'))
+
+@app.route('/admin/orders')
+@login_required
+def admin_orders():
+    if not current_user.is_admin:
+        flash('无权访问', 'error')
+        return redirect(url_for('index'))
+    
+    status = request.args.get('status', '')
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    query = "SELECT o.*, u.username FROM orders o JOIN users u ON o.user_id = u.id"
+    params = []
+    
+    if status:
+        query += " WHERE o.status = %s"
+        params.append(status)
+    
+    query += " ORDER BY o.created_at DESC"
+    
+    cursor.execute(query, params)
+    orders = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    return render_template('admin/order_manage.html', orders=orders, status=status)
+
+@app.route('/admin/order/update_status', methods=['POST'])
+@login_required
+def update_order_status():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': '无权访问'})
+    
+    order_id = request.form['order_id']
+    status = request.form['status']
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("UPDATE orders SET status = %s WHERE id = %s", (status, order_id))
+    
+    # 如果订单发货，发送邮件通知
+    if status == 'shipped':
+        cursor.execute("SELECT u.email, u.username FROM orders o JOIN users u ON o.user_id = u.id WHERE o.id = %s", (order_id,))
+        order_info = cursor.fetchone()
+        
+        if order_info:
+            try:
+                msg = Message('订单已发货 - 在线购物网站',
+                             sender=app.config['MAIL_DEFAULT_SENDER'],
+                             recipients=[order_info['email']])
+                msg.body = f'''
+尊敬的 {order_info['username']}：
+
+您的订单 #{order_id} 已发货，请注意查收。
+
+感谢您的购物！
+'''
+                mail.send(msg)
+            except Exception as e:
+                print(f"邮件发送失败: {e}")
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': '订单状态更新成功'})
+
+@app.route('/admin/stats')
+@login_required
+def admin_stats():
+    if not current_user.is_admin:
+        flash('无权访问', 'error')
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 销售统计
+    cursor.execute("""
+        SELECT DATE(created_at) as date, COUNT(*) as order_count, SUM(total_amount) as revenue 
+        FROM orders 
+        WHERE status = 'completed' 
+        GROUP BY DATE(created_at) 
+        ORDER BY date DESC 
+        LIMIT 30
+    """)
+    sales_data = cursor.fetchall()
+    
+    # 热门商品
+    cursor.execute("""
+        SELECT p.name, SUM(oi.quantity) as total_sold 
+        FROM order_items oi 
+        JOIN products p ON oi.product_id = p.id 
+        JOIN orders o ON oi.order_id = o.id 
+        WHERE o.status = 'completed' 
+        GROUP BY p.id, p.name 
+        ORDER BY total_sold DESC 
+        LIMIT 10
+    """)
+    popular_products = cursor.fetchall()
+    
+    cursor.close()
+    conn.close()
+    
+    return render_template('admin/stats.html', 
+                         sales_data=sales_data, 
+                         popular_products=popular_products)
+
+if __name__ == '__main__':
+    init_db()
+    app.run(debug=True)

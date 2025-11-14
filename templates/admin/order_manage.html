@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}订单管理 - 在线购物网站{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div style="display: flex;">
+        <!-- 侧边栏 -->
+        <div class="admin-sidebar" style="width: 250px; min-height: calc(100vh - 56px);">
+            <ul class="navbar-nav" style="padding: 1rem 0;">
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_dashboard') }}" class="nav-link">仪表盘</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_products') }}" class="nav-link">商品管理</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_orders') }}" class="nav-link active">订单管理</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_stats') }}" class="nav-link">销售统计</a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 主内容区 -->
+        <div style="flex: 1; padding: 2rem;">
+            <h1 style="margin-bottom: 2rem;">订单管理</h1>
+
+            <!-- 订单状态筛选 -->
+            <div style="margin-bottom: 2rem;">
+                <form method="GET" action="{{ url_for('admin_orders') }}">
+                    <select name="status" class="form-control" style="width: 200px; display: inline-block;" onchange="this.form.submit()">
+                        <option value="">所有状态</option>
+                        <option value="pending" {% if status == 'pending' %}selected{% endif %}>待付款</option>
+                        <option value="paid" {% if status == 'paid' %}selected{% endif %}>已付款</option>
+                        <option value="shipped" {% if status == 'shipped' %}selected{% endif %}>已发货</option>
+                        <option value="completed" {% if status == 'completed' %}selected{% endif %}>已完成</option>
+                        <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>已取消</option>
+                    </select>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>订单号</th>
+                                <th>用户</th>
+                                <th>总金额</th>
+                                <th>状态</th>
+                                <th>下单时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                                <tr>
+                                    <td>#{{ order.id }}</td>
+                                    <td>{{ order.username }}</td>
+                                    <td>¥{{ "%.2f"|format(order.total_amount) }}</td>
+                                    <td>
+                                        <span class="status-{{ order.status }}">
+                                            {% if order.status == 'pending' %}待付款
+                                            {% elif order.status == 'paid' %}已付款
+                                            {% elif order.status == 'shipped' %}已发货
+                                            {% elif order.status == 'completed' %}已完成
+                                            {% elif order.status == 'cancelled' %}已取消
+                                            {% else %}{{ order.status }}{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                    <td>
+                                        <select class="form-control form-control-sm status-select" data-order-id="{{ order.id }}" style="width: 120px; display: inline-block;">
+                                            <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>待付款</option>
+                                            <option value="paid" {% if order.status == 'paid' %}selected{% endif %}>已付款</option>
+                                            <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>已发货</option>
+                                            <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>已完成</option>
+                                            <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.status-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const orderId = this.getAttribute('data-order-id');
+            const status = this.value;
+
+            if (confirm('确定要更新订单状态吗？')) {
+                // 发送AJAX请求更新状态
+                const formData = new FormData();
+                formData.append('order_id', orderId);
+                formData.append('status', status);
+
+                fetch('{{ url_for("update_order_status") }}', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('订单状态更新成功');
+                        location.reload();
+                    } else {
+                        alert('更新失败: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('更新失败: ' + error);
+                });
+            } else {
+                // 恢复原来的选择
+                this.value = this.getAttribute('data-original-value');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

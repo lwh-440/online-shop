@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}管理后台 - 在线购物网站{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div style="display: flex;">
+        <!-- 侧边栏 -->
+        <div class="admin-sidebar" style="width: 250px; min-height: calc(100vh - 56px);">
+            <ul class="navbar-nav" style="padding: 1rem 0;">
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}">仪表盘</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_products') }}" class="nav-link {% if request.endpoint == 'admin_products' %}active{% endif %}">商品管理</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_orders') }}" class="nav-link {% if request.endpoint == 'admin_orders' %}active{% endif %}">订单管理</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_stats') }}" class="nav-link {% if request.endpoint == 'admin_stats' %}active{% endif %}">销售统计</a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 主内容区 -->
+        <div style="flex: 1; padding: 2rem;">
+            <h1>管理后台</h1>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-number">{{ product_count }}</span>
+                    <span class="stat-label">商品数量</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">{{ order_count }}</span>
+                    <span class="stat-label">订单总数</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">{{ user_count }}</span>
+                    <span class="stat-label">用户数量</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number">¥{{ "%.2f"|format(revenue) }}</span>
+                    <span class="stat-label">总收入</span>
+                </div>
+            </div>
+
+            <div style="margin-top: 3rem;">
+                <h2>快速操作</h2>
+                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                    <a href="{{ url_for('admin_products') }}" class="btn btn-primary">管理商品</a>
+                    <a href="{{ url_for('admin_orders') }}" class="btn btn-primary">处理订单</a>
+                    <a href="{{ url_for('admin_stats') }}" class="btn btn-primary">查看统计</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}销售统计 - 在线购物网站{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div style="display: flex;">
+        <!-- 侧边栏 -->
+        <div class="admin-sidebar" style="width: 250px; min-height: calc(100vh - 56px);">
+            <ul class="navbar-nav" style="padding: 1rem 0;">
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_dashboard') }}" class="nav-link">仪表盘</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_products') }}" class="nav-link">商品管理</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_orders') }}" class="nav-link">订单管理</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_stats') }}" class="nav-link active">销售统计</a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 主内容区 -->
+        <div style="flex: 1; padding: 2rem;">
+            <h1 style="margin-bottom: 2rem;">销售统计</h1>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>近期销售趋势</h3>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>订单数</th>
+                                <th>销售额</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for data in sales_data %}
+                                <tr>
+                                    <td>{{ data.date }}</td>
+                                    <td>{{ data.order_count }}</td>
+                                    <td>¥{{ "%.2f"|format(data.revenue) }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 2rem;">
+                <div class="card-header">
+                    <h3>热门商品</h3>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>商品名称</th>
+                                <th>销量</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in popular_products %}
+                                <tr>
+                                    <td>{{ product.name }}</td>
+                                    <td>{{ product.total_sold }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
