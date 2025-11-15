@@ -127,29 +127,6 @@ def register():
     
     return render_template('auth/register.html')
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
-        user = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        
-        if user and check_password_hash(user['password'], password):
-            user_obj = User(user['id'], user['username'], user['email'], user['is_admin'])
-            login_user(user_obj, remember=True)
-            flash('登录成功', 'success')
-            return redirect(url_for('index'))
-        else:
-            flash('用户名或密码错误', 'error')
-    
-    return render_template('auth/login.html')
-
 @app.route('/logout')
 @login_required
 def logout():
@@ -440,7 +417,6 @@ def order_detail(order_id):
     
     return render_template('order/detail.html', order=order, items=items)
 
-# 管理员路由
 @app.route('/admin')
 @login_required
 def admin_dashboard():
@@ -451,18 +427,22 @@ def admin_dashboard():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 统计信息
+    # 统计信息 - 修复这里
     cursor.execute("SELECT COUNT(*) as count FROM products")
-    product_count = cursor.fetchone()['count']
+    product_count_result = cursor.fetchone()
+    product_count = product_count_result[0] if product_count_result else 0  # 使用索引访问元组
     
     cursor.execute("SELECT COUNT(*) as count FROM orders")
-    order_count = cursor.fetchone()['count']
+    order_count_result = cursor.fetchone()
+    order_count = order_count_result[0] if order_count_result else 0
     
     cursor.execute("SELECT COUNT(*) as count FROM users")
-    user_count = cursor.fetchone()['count']
+    user_count_result = cursor.fetchone()
+    user_count = user_count_result[0] if user_count_result else 0
     
     cursor.execute("SELECT SUM(total_amount) as revenue FROM orders WHERE status = 'completed'")
-    revenue = cursor.fetchone()['revenue'] or 0
+    revenue_result = cursor.fetchone()
+    revenue = revenue_result[0] if revenue_result and revenue_result[0] else 0  # 处理None情况
     
     cursor.close()
     conn.close()

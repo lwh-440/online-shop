@@ -18,55 +18,194 @@ body {
     padding: 0 20px;
 }
 
-/* 导航栏样式 */
+/* 导航栏样式 - 优化版 */
 .navbar {
-    background-color: #fff;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     position: sticky;
     top: 0;
     z-index: 1000;
+    padding: 0;
 }
 
 .navbar-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 0;
+    padding: 0.5rem 0;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
 }
 
 .navbar-brand {
-    font-size: 1.5rem;
+    font-size: 1.8rem;
     font-weight: bold;
-    color: #007bff;
+    color: white;
     text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.navbar-brand:hover {
+    color: #ffeb3b;
+    transform: translateY(-2px);
 }
 
 .navbar-nav {
     display: flex;
     list-style: none;
     align-items: center;
+    margin: 0;
+    padding: 0;
+    gap: 0.5rem;
 }
 
 .nav-item {
-    margin-left: 1.5rem;
+    margin: 0;
 }
 
 .nav-link {
-    color: #333;
+    color: white;
     text-decoration: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    transition: background-color 0.3s;
+    padding: 0.75rem 1.25rem;
+    border-radius: 25px;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.nav-link::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    transition: left 0.5s;
+}
+
+.nav-link:hover::before {
+    left: 100%;
 }
 
 .nav-link:hover {
-    background-color: #f8f9fa;
-    color: #007bff;
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffeb3b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
 
 .nav-link.active {
-    background-color: #007bff;
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffeb3b;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 2px;
+    background: #ffeb3b;
+    border-radius: 2px;
+}
+
+/* 用户欢迎信息特殊样式 */
+.navbar-nav .nav-link:not([href]) {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    font-weight: 600;
+    cursor: default;
+}
+
+.navbar-nav .nav-link:not([href]):hover {
+    background: transparent;
+    transform: none;
     color: white;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .navbar-container {
+        flex-direction: column;
+        padding: 1rem 0;
+    }
+    
+    .navbar-nav {
+        margin-top: 1rem;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    
+    .nav-link {
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .navbar-nav {
+        gap: 0.25rem;
+    }
+    
+    .nav-link {
+        padding: 0.5rem 0.8rem;
+        font-size: 0.85rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1.3rem;
+    }
+}
+
+/* 添加图标（使用Unicode字符作为简易图标） */
+.nav-link[href*="products"]::before {
+    content: "🛍️ ";
+}
+
+.nav-link[href*="cart"]::before {
+    content: "🛒 ";
+}
+
+.nav-link[href*="orders"]::before {
+    content: "📦 ";
+}
+
+.nav-link[href*="admin"]::before {
+    content: "⚙️ ";
+}
+
+.nav-link[href*="login"]::before {
+    content: "🔑 ";
+}
+
+.nav-link[href*="register"]::before {
+    content: "👤 ";
+}
+
+.nav-link[href*="logout"]::before {
+    content: "🚪 ";
 }
 
 /* 消息提示 */

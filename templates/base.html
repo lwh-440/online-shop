@@ -8,50 +8,67 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- 导航栏 -->
+    <!-- 优化后的导航栏 -->
     <nav class="navbar">
-        <div class="container">
-            <div class="navbar-container">
-                <a href="{{ url_for('index') }}" class="navbar-brand">在线购物</a>
+        <div class="navbar-container">
+            <a href="{{ url_for('index') }}" class="navbar-brand">🛒 在线购物</a>
+            
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
+                        🏠 首页
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('product_list') }}" class="nav-link {% if request.endpoint == 'product_list' %}active{% endif %}">
+                        商品
+                    </a>
+                </li>
                 
-                <ul class="navbar-nav">
+                {% if current_user.is_authenticated %}
                     <li class="nav-item">
-                        <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">首页</a>
+                        <a href="{{ url_for('cart') }}" class="nav-link {% if request.endpoint == 'cart' %}active{% endif %}">
+                            购物车
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('product_list') }}" class="nav-link {% if request.endpoint == 'product_list' %}active{% endif %}">商品</a>
+                        <a href="{{ url_for('order_history') }}" class="nav-link {% if request.endpoint == 'order_history' %}active{% endif %}">
+                            我的订单
+                        </a>
                     </li>
                     
-                    {% if current_user.is_authenticated %}
+                    {% if current_user.is_admin %}
                         <li class="nav-item">
-                            <a href="{{ url_for('cart') }}" class="nav-link {% if request.endpoint == 'cart' %}active{% endif %}">购物车</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ url_for('order_history') }}" class="nav-link {% if request.endpoint == 'order_history' %}active{% endif %}">我的订单</a>
-                        </li>
-                        
-                        {% if current_user.is_admin %}
-                            <li class="nav-item">
-                                <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if request.endpoint.startswith('admin') %}active{% endif %}">管理后台</a>
-                            </li>
-                        {% endif %}
-                        
-                        <li class="nav-item">
-                            <span class="nav-link">欢迎, {{ current_user.username }}</span>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ url_for('logout') }}" class="nav-link">退出</a>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a href="{{ url_for('login') }}" class="nav-link {% if request.endpoint == 'login' %}active{% endif %}">登录</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ url_for('register') }}" class="nav-link {% if request.endpoint == 'register' %}active{% endif %}">注册</a>
+                            <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if request.endpoint.startswith('admin') %}active{% endif %}">
+                                管理后台
+                            </a>
                         </li>
                     {% endif %}
-                </ul>
-            </div>
+                    
+                    <li class="nav-item">
+                        <span class="nav-link" style="background: rgba(255,215,0,0.2); border-color: gold;">
+                            👋 欢迎, {{ current_user.username }}
+                        </span>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('logout') }}" class="nav-link" style="background: rgba(220,53,69,0.2); border-color: #dc3545;">
+                            退出
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('login') }}" class="nav-link {% if request.endpoint == 'login' %}active{% endif %}">
+                            登录
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('register') }}" class="nav-link {% if request.endpoint == 'register' %}active{% endif %}" 
+                           style="background: rgba(40,167,69,0.2); border-color: #28a745;">
+                            注册
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
         </div>
     </nav>
 

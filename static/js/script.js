@@ -134,6 +134,47 @@ function updateCartTotal() {
     document.querySelector('.cart-total').textContent = '总计: ¥' + total.toFixed(2);
 }
 
+// 导航栏动态效果
+function initNavbarEffects() {
+    const navLinks = document.querySelectorAll('.nav-link');
+    
+    navLinks.forEach(link => {
+        // 鼠标悬停效果
+        link.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px) scale(1.05)';
+        });
+        
+        link.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0) scale(1)';
+        });
+        
+        // 点击效果
+        link.addEventListener('click', function() {
+            this.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                this.style.transform = 'scale(1)';
+            }, 150);
+        });
+    });
+    
+    // 滚动时导航栏效果
+    window.addEventListener('scroll', function() {
+        const navbar = document.querySelector('.navbar');
+        if (window.scrollY > 50) {
+            navbar.style.background = 'linear-gradient(135deg, #5a6fd8 0%, #6a42a5 100%)';
+            navbar.style.boxShadow = '0 4px 30px rgba(0,0,0,0.3)';
+        } else {
+            navbar.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            navbar.style.boxShadow = '0 4px 20px rgba(0,0,0,0.1)';
+        }
+    });
+}
+
+// 在DOM加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    initNavbarEffects();
+});
+
 // AJAX请求辅助函数
 function ajaxRequest(url, method, data, callback) {
     const xhr = new XMLHttpRequest();

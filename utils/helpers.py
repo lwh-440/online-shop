@@ -15,6 +15,11 @@ def save_image(file):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_")
         filename = timestamp + filename
         
+        # 确保上传目录存在
+        upload_dir = Config.UPLOAD_FOLDER
+        if not os.path.exists(upload_dir):
+            os.makedirs(upload_dir, exist_ok=True)
+
         filepath = os.path.join(Config.UPLOAD_FOLDER, filename)
         file.save(filepath)
         

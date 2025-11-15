@@ -2,12 +2,12 @@ import os
 from datetime import timedelta
 
 class Config:
-    SECRET_KEY = 'your-secret-key-here'
+    SECRET_KEY = '9e08c72ade8f24edb13aaf196a7157b3'
     
     # MySQL数据库配置
     MYSQL_HOST = 'localhost'
     MYSQL_USER = 'shop_user'
-    MYSQL_PASSWORD = 'user123456'
+    MYSQL_PASSWORD = 'User123456!'
     MYSQL_DB = 'online_shop'
     MYSQL_CURSORCLASS = 'DictCursor'
     
