@@ -2,12 +2,12 @@ import os
 from datetime import timedelta
 
 class Config:
-    SECRET_KEY = '9e08c72ade8f24edb13aaf196a7157b3'
+    SECRET_KEY = 'your-secret-key-here'
     
     # MySQL数据库配置
     MYSQL_HOST = 'localhost'
-    MYSQL_USER = 'shop_user'
-    MYSQL_PASSWORD = 'User123456!'
+    MYSQL_USER = 'your_user'
+    MYSQL_PASSWORD = 'your_password'
     MYSQL_DB = 'online_shop'
     MYSQL_CURSORCLASS = 'DictCursor'
     
@@ -15,9 +15,9 @@ class Config:
     MAIL_SERVER = 'smtp.qq.com'
     MAIL_PORT = 587
     MAIL_USE_TLS = True
-    MAIL_USERNAME = '2085139328@qq.com'
-    MAIL_PASSWORD = 'kxoqoqqincatchca'  # QQ邮箱授权码
-    MAIL_DEFAULT_SENDER = '2085139328@qq.com'
+    MAIL_USERNAME = 'your qq email@qq.com'
+    MAIL_PASSWORD = 'your password'  # QQ邮箱授权码
+    MAIL_DEFAULT_SENDER = 'your qq email@qq.com'
     
     # 文件上传配置
     UPLOAD_FOLDER = 'static/uploads/products'
