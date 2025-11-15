@@ -8,7 +8,8 @@ def get_db_connection():
             host=Config.MYSQL_HOST,
             user=Config.MYSQL_USER,
             password=Config.MYSQL_PASSWORD,
-            database=Config.MYSQL_DB
+            database=Config.MYSQL_DB,
+            buffered=True  # 添加这个参数
         )
         return conn
     except Error as e:
@@ -102,7 +103,7 @@ def init_db():
     
     # 插入示例商品
     cursor.execute("SELECT COUNT(*) as count FROM products")
-    product_count = cursor.fetchone()[0]
+    product_count = cursor.fetchone()[0]  # 这里仍然是元组访问
     
     if product_count == 0:
         sample_products = [

@@ -45,3 +45,48 @@ def delete_image(image_url):
                 os.remove(filepath)
         except Exception as e:
             print(f"删除图片错误: {e}")
+            
+def dict_to_product(product_dict):
+    """将数据库查询结果转换为易于使用的字典"""
+    if not product_dict:
+        return None
+    
+    # 如果是元组，转换为字典
+    if isinstance(product_dict, tuple):
+        # 根据数据库表结构映射字段
+        # 顺序: id, name, description, price, stock, category, image_url, created_at
+        keys = ['id', 'name', 'description', 'price', 'stock', 'category', 'image_url', 'created_at']
+        product_dict = dict(zip(keys, product_dict))
+    
+    return product_dict
+
+def rows_to_products(rows):
+    """将多行查询结果转换为产品列表"""
+    if not rows:
+        return []
+    
+    products = []
+    for row in rows:
+        products.append(dict_to_product(row))
+    return products
+
+def dict_to_user(user_dict):
+    """将用户查询结果转换为字典"""
+    if not user_dict:
+        return None
+    
+    if isinstance(user_dict, tuple):
+        keys = ['id', 'username', 'email', 'password', 'is_admin', 'created_at']
+        user_dict = dict(zip(keys, user_dict))
+    
+    return user_dict
+
+def rows_to_users(rows):
+    """将多行用户查询结果转换为列表"""
+    if not rows:
+        return []
+    
+    users = []
+    for row in rows:
+        users.append(dict_to_user(row))
+    return users

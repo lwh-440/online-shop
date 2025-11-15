@@ -1,3 +1,4 @@
+from utils.helpers import rows_to_products, dict_to_product, rows_to_users, dict_to_user
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_mysqldb import MySQL
 from flask_mail import Mail, Message
@@ -26,10 +27,38 @@ def load_user(user_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
-    user = cursor.fetchone()
+    user_row = cursor.fetchone()
     cursor.close()
     conn.close()
-    return user if user else None
+    
+    user = dict_to_user(user_row)
+    if user:
+        return User(user['id'], user['username'], user['email'], user['is_admin'])
+    return None
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        user_row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        user = dict_to_user(user_row)
+        if user and check_password_hash(user['password'], password):
+            user_obj = User(user['id'], user['username'], user['email'], user['is_admin'])
+            login_user(user_obj, remember=True)
+            flash('登录成功', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('用户名或密码错误', 'error')
+    
+    return render_template('auth/login.html')
 
 class User:
     def __init__(self, id, username, email, is_admin=False):
@@ -56,9 +85,12 @@ def index():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM products WHERE stock > 0 ORDER BY created_at DESC LIMIT 8")
-    products = cursor.fetchall()
+    products_rows = cursor.fetchall()
     cursor.close()
     conn.close()
+    
+    # 转换查询结果为字典格式
+    products = rows_to_products(products_rows)
     return render_template('index.html', products=products)
 
 # 用户认证路由
@@ -148,10 +180,11 @@ def product_list():
     query += " ORDER BY created_at DESC"
     
     cursor.execute(query, params)
-    products = cursor.fetchall()
+    products_rows = cursor.fetchall()
     cursor.close()
     conn.close()
     
+    products = rows_to_products(products_rows)
     return render_template('product/list.html', products=products, search=search, category=category)
 
 @app.route('/product/<int:product_id>')
@@ -159,9 +192,11 @@ def product_detail(product_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM products WHERE id = %s", (product_id,))
-    product = cursor.fetchone()
+    product_row = cursor.fetchone()
     cursor.close()
     conn.close()
+    
+    product = dict_to_product(product_row)
     
     if not product:
         flash('商品不存在', 'error')
@@ -181,9 +216,19 @@ def cart():
         JOIN products p ON c.product_id = p.id 
         WHERE c.user_id = %s
     """, (current_user.id,))
-    cart_items = cursor.fetchall()
+    cart_items_rows = cursor.fetchall()
     cursor.close()
     conn.close()
+    
+    # 转换购物车项目
+    cart_items = []
+    for row in cart_items_rows:
+        if isinstance(row, tuple):
+            # 根据查询的字段顺序创建字典
+            keys = ['id', 'user_id', 'product_id', 'quantity', 'created_at', 'name', 'price', 'image_url', 'stock']
+            cart_items.append(dict(zip(keys, row)))
+        else:
+            cart_items.append(row)
     
     total = sum(item['price'] * item['quantity'] for item in cart_items)
     return render_template('cart/cart.html', cart_items=cart_items, total=total)
@@ -339,9 +384,19 @@ def order_history():
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM orders WHERE user_id = %s ORDER BY created_at DESC", 
                   (current_user.id,))
-    orders = cursor.fetchall()
+    orders_rows = cursor.fetchall()
     cursor.close()
     conn.close()
+    
+    # 转换订单数据
+    orders = []
+    for row in orders_rows:
+        if isinstance(row, tuple):
+            keys = ['id', 'user_id', 'total_amount', 'status', 'address', 'phone', 'created_at']
+            orders.append(dict(zip(keys, row)))
+        else:
+            orders.append(row)
+            
     return render_template('order/history.html', orders=orders)
 
 @app.route('/order/<int:order_id>')
@@ -351,11 +406,18 @@ def order_detail(order_id):
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM orders WHERE id = %s AND user_id = %s", 
                   (order_id, current_user.id))
-    order = cursor.fetchone()
+    order_row = cursor.fetchone()
     
-    if not order:
+    if not order_row:
         flash('订单不存在', 'error')
         return redirect(url_for('order_history'))
+    
+    # 转换订单数据
+    if isinstance(order_row, tuple):
+        keys = ['id', 'user_id', 'total_amount', 'status', 'address', 'phone', 'created_at']
+        order = dict(zip(keys, order_row))
+    else:
+        order = order_row
     
     cursor.execute("""
         SELECT oi.*, p.name, p.image_url 
@@ -363,9 +425,18 @@ def order_detail(order_id):
         JOIN products p ON oi.product_id = p.id 
         WHERE oi.order_id = %s
     """, (order_id,))
-    items = cursor.fetchall()
+    items_rows = cursor.fetchall()
     cursor.close()
     conn.close()
+    
+    # 转换订单项数据
+    items = []
+    for row in items_rows:
+        if isinstance(row, tuple):
+            keys = ['id', 'order_id', 'product_id', 'quantity', 'price', 'name', 'image_url']
+            items.append(dict(zip(keys, row)))
+        else:
+            items.append(row)
     
     return render_template('order/detail.html', order=order, items=items)
 
@@ -440,10 +511,11 @@ def admin_products():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM products ORDER BY created_at DESC")
-    products = cursor.fetchall()
+    products_rows = cursor.fetchall()
     cursor.close()
     conn.close()
     
+    products = rows_to_products(products_rows)
     return render_template('admin/product_manage.html', products=products)
 
 @app.route('/admin/product/edit/<int:product_id>', methods=['GET', 'POST'])
@@ -487,9 +559,11 @@ def edit_product(product_id):
         return redirect(url_for('admin_products'))
     
     cursor.execute("SELECT * FROM products WHERE id = %s", (product_id,))
-    product = cursor.fetchone()
+    product_row = cursor.fetchone()
     cursor.close()
     conn.close()
+    
+    product = dict_to_product(product_row)
     
     if not product:
         flash('商品不存在', 'error')
@@ -544,9 +618,18 @@ def admin_orders():
     query += " ORDER BY o.created_at DESC"
     
     cursor.execute(query, params)
-    orders = cursor.fetchall()
+    orders_rows = cursor.fetchall()
     cursor.close()
     conn.close()
+    
+    # 转换订单数据
+    orders = []
+    for row in orders_rows:
+        if isinstance(row, tuple):
+            keys = ['id', 'user_id', 'total_amount', 'status', 'address', 'phone', 'created_at', 'username']
+            orders.append(dict(zip(keys, row)))
+        else:
+            orders.append(row)
     
     return render_template('admin/order_manage.html', orders=orders, status=status)
 
@@ -610,7 +693,16 @@ def admin_stats():
         ORDER BY date DESC 
         LIMIT 30
     """)
-    sales_data = cursor.fetchall()
+    sales_data_rows = cursor.fetchall()
+    
+    # 转换销售数据
+    sales_data = []
+    for row in sales_data_rows:
+        if isinstance(row, tuple):
+            keys = ['date', 'order_count', 'revenue']
+            sales_data.append(dict(zip(keys, row)))
+        else:
+            sales_data.append(row)
     
     # 热门商品
     cursor.execute("""
@@ -623,7 +715,16 @@ def admin_stats():
         ORDER BY total_sold DESC 
         LIMIT 10
     """)
-    popular_products = cursor.fetchall()
+    popular_products_rows = cursor.fetchall()
+    
+    # 转换热门商品数据
+    popular_products = []
+    for row in popular_products_rows:
+        if isinstance(row, tuple):
+            keys = ['name', 'total_sold']
+            popular_products.append(dict(zip(keys, row)))
+        else:
+            popular_products.append(row)
     
     cursor.close()
     conn.close()
