@@ -127,29 +127,6 @@ def register():
     
     return render_template('auth/register.html')
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
-        user = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        
-        if user and check_password_hash(user['password'], password):
-            user_obj = User(user['id'], user['username'], user['email'], user['is_admin'])
-            login_user(user_obj, remember=True)
-            flash('登录成功', 'success')
-            return redirect(url_for('index'))
-        else:
-            flash('用户名或密码错误', 'error')
-    
-    return render_template('auth/login.html')
-
 @app.route('/logout')
 @login_required
 def logout():
