@@ -25,13 +25,16 @@
                     <label for="stock" class="form-label">库存</label>
                     <input type="number" class="form-control" id="stock" name="stock" value="{{ product.stock }}" required>
                 </div>
+               <!-- 在商品管理模板中找到分类输入部分，替换为： -->
                 <div class="form-group">
-                    <label for="category" class="form-label">分类</label>
-                    <select class="form-control" id="category" name="category" required>
-                        <option value="electronics" {% if product.category == 'electronics' %}selected{% endif %}>电子产品</option>
-                        <option value="clothing" {% if product.category == 'clothing' %}selected{% endif %}>服装</option>
-                        <option value="shoes" {% if product.category == 'shoes' %}selected{% endif %}>鞋类</option>
-                        <option value="books" {% if product.category == 'books' %}selected{% endif %}>图书</option>
+                    <label for="category_id" class="form-label">分类</label>
+                    <select class="form-control" id="category_id" name="category_id" required>
+                        <option value="">请选择分类</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}" {% if product and product.category_id == category.id %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div class="form-group">
