@@ -219,9 +219,18 @@ def add_to_cart():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 检查商品库存
+    # 检查商品库存 - 修复这里
     cursor.execute("SELECT stock FROM products WHERE id = %s", (product_id,))
-    product = cursor.fetchone()
+    product_row = cursor.fetchone()
+    
+    # 转换查询结果为字典格式
+    if product_row:
+        if isinstance(product_row, tuple):
+            product = {'stock': product_row[0]}  # 使用索引访问元组
+        else:
+            product = product_row
+    else:
+        product = None
     
     if not product or product['stock'] < quantity:
         flash('库存不足', 'error')
@@ -233,9 +242,16 @@ def add_to_cart():
     existing_item = cursor.fetchone()
     
     if existing_item:
-        new_quantity = existing_item['quantity'] + quantity
+        # 转换现有购物车项
+        if isinstance(existing_item, tuple):
+            keys = ['id', 'user_id', 'product_id', 'quantity', 'created_at']
+            existing_item_dict = dict(zip(keys, existing_item))
+        else:
+            existing_item_dict = existing_item
+            
+        new_quantity = existing_item_dict['quantity'] + quantity
         cursor.execute("UPDATE cart_items SET quantity = %s WHERE id = %s", 
-                      (new_quantity, existing_item['id']))
+                      (new_quantity, existing_item_dict['id']))
     else:
         cursor.execute(
             "INSERT INTO cart_items (user_id, product_id, quantity) VALUES (%s, %s, %s)",
