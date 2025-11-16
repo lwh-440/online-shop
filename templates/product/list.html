@@ -4,18 +4,19 @@
 
 {% block content %}
 <div class="container">
-    <div style="display: flex; justify-content: between; align-items: center; margin: 2rem 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin: 2rem 0;">
         <h1>商品列表</h1>
         
         <!-- 搜索和筛选 -->
         <form method="GET" action="{{ url_for('product_list') }}" style="display: flex; gap: 1rem; align-items: center;">
             <input type="text" name="search" class="form-control" placeholder="搜索商品..." value="{{ search }}" style="width: 200px;">
-            <select name="category" class="form-control" style="width: 150px;">
+            <select name="category_id" class="form-control" style="width: 150px;">
                 <option value="">所有分类</option>
-                <option value="electronics" {% if category == 'electronics' %}selected{% endif %}>电子产品</option>
-                <option value="clothing" {% if category == 'clothing' %}selected{% endif %}>服装</option>
-                <option value="shoes" {% if category == 'shoes' %}selected{% endif %}>鞋类</option>
-                <option value="books" {% if category == 'books' %}selected{% endif %}>图书</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if category_id == cat.id %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                {% endfor %}
             </select>
             <button type="submit" class="btn btn-primary">搜索</button>
         </form>
@@ -32,6 +33,11 @@
                             {{ product.description[:80] }}{% if product.description|length > 80 %}...{% endif %}
                         </p>
                         <div class="product-price">¥{{ "%.2f"|format(product.price) }}</div>
+                        
+                        <div class="product-category" style="color: #888; font-size: 0.85rem; margin-bottom: 0.5rem;">
+                            分类: {{ product.category_id or '未分类' }}
+                        </div>
+                        
                         <div class="product-stock">库存: {{ product.stock }}</div>
                         <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
                             <a href="{{ url_for('product_detail', product_id=product.id) }}" class="btn btn-primary" style="flex: 1;">查看详情</a>
