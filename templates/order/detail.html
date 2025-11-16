@@ -37,6 +37,36 @@
                 </div>
             </div>
 
+            <!-- 订单操作按钮 -->
+            <div style="margin-bottom: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 5px;">
+                <h4>订单操作</h4>
+                <div>
+                    {% if order.status == 'pending' %}
+                        <form method="POST" action="{{ url_for('pay_order', order_id=order.id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-success" onclick="return confirm('确定要付款吗？')">
+                                <i class="fas fa-credit-card"></i> 立即付款
+                            </button>
+                        </form>
+                        <span style="margin-left: 1rem; color: #666;">请及时付款，超时订单可能会被取消</span>
+                    {% elif order.status == 'shipped' %}
+                        <form method="POST" action="{{ url_for('complete_order', order_id=order.id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-warning" onclick="return confirm('确定已收到商品吗？')">
+                                <i class="fas fa-check-circle"></i> 确认收货
+                            </button>
+                        </form>
+                        <span style="margin-left: 1rem; color: #666;">收到商品后请及时确认，以便我们为您提供售后服务</span>
+                    {% elif order.status == 'completed' %}
+                        <span class="text-success">
+                            <i class="fas fa-check-circle"></i> 订单已完成，感谢您的购买！
+                        </span>
+                    {% elif order.status == 'paid' %}
+                        <span class="text-info">
+                            <i class="fas fa-shipping-fast"></i> 已付款，等待商家发货
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
             <h4>订单商品</h4>
             <table class="table">
                 <thead>
@@ -70,4 +100,47 @@
         <a href="{{ url_for('order_history') }}" class="btn btn-outline">返回订单列表</a>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 增强按钮交互
+    const buttons = document.querySelectorAll('button[type="submit"]');
+    buttons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            if (this.classList.contains('btn-success')) {
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 付款中...';
+            } else if (this.classList.contains('btn-warning')) {
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 确认中...';
+            }
+            this.disabled = true;
+            
+            // 自动提交表单
+            setTimeout(() => {
+                this.form.submit();
+            }, 500);
+        });
+    });
+});
+</script>
+
+<style>
+.fas {
+    margin-right: 5px;
+}
+
+.fa-spin {
+    animation: fa-spin 1s infinite linear;
+}
+
+@keyframes fa-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.status-pending { color: #ffc107; font-weight: bold; }
+.status-paid { color: #17a2b8; font-weight: bold; }
+.status-shipped { color: #007bff; font-weight: bold; }
+.status-completed { color: #28a745; font-weight: bold; }
+.status-cancelled { color: #dc3545; font-weight: bold; }
+</style>
 {% endblock %}
