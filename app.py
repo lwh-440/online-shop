@@ -497,6 +497,56 @@ def order_detail(order_id):
     
     return render_template('order/detail.html', order=order, items=items)
 
+@app.route('/order/pay/<int:order_id>', methods=['POST'])
+@login_required
+def pay_order(order_id):
+    """付款操作"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 验证订单属于当前用户且状态正确
+    cursor.execute("SELECT * FROM orders WHERE id = %s AND user_id = %s AND status = 'pending'", 
+                  (order_id, current_user.id))
+    order = cursor.fetchone()
+    
+    if not order:
+        flash('订单不存在或无法付款', 'error')
+        return redirect(url_for('order_history'))
+    
+    # 更新订单状态为已付款
+    cursor.execute("UPDATE orders SET status = 'paid' WHERE id = %s", (order_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    flash('付款成功！', 'success')
+    return redirect(url_for('order_history'))
+
+@app.route('/order/complete/<int:order_id>', methods=['POST'])
+@login_required
+def complete_order(order_id):
+    """确认收货操作"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 验证订单属于当前用户且状态正确
+    cursor.execute("SELECT * FROM orders WHERE id = %s AND user_id = %s AND status = 'shipped'", 
+                  (order_id, current_user.id))
+    order = cursor.fetchone()
+    
+    if not order:
+        flash('订单不存在或无法确认收货', 'error')
+        return redirect(url_for('order_history'))
+    
+    # 更新订单状态为已完成
+    cursor.execute("UPDATE orders SET status = 'completed' WHERE id = %s", (order_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    flash('确认收货成功！订单已完成。', 'success')
+    return redirect(url_for('order_history'))
+
 @app.route('/admin')
 @login_required
 def admin_dashboard():
