@@ -37,6 +37,16 @@
                                 </td>
                                 <td>
                                     <a href="{{ url_for('order_detail', order_id=order.id) }}" class="btn btn-sm btn-primary">查看详情</a>
+                                    
+                                    {% if order.status == 'pending' %}
+                                        <form method="POST" action="{{ url_for('pay_order', order_id=order.id) }}" style="display: inline;">
+                                            <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('确定要付款吗？')">立即付款</button>
+                                        </form>
+                                    {% elif order.status == 'shipped' %}
+                                        <form method="POST" action="{{ url_for('complete_order', order_id=order.id) }}" style="display: inline;">
+                                            <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('确定已收到商品吗？')">确认收货</button>
+                                        </form>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}
@@ -51,4 +61,64 @@
         </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 监听表单提交，显示加载状态
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function() {
+            const button = this.querySelector('button[type="submit"]');
+            if (button) {
+                button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 处理中...';
+                button.disabled = true;
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+.btn-sm {
+    margin: 2px;
+}
+</style>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5>订单状态说明</h5>
+    </div>
+    <div class="card-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <div style="text-align: center; padding: 10px;">
+                <div style="background: #ffc107; color: white; width: 30px; height: 30px; line-height: 30px; border-radius: 50%; margin: 0 auto;">1</div>
+                <div>待付款</div>
+            </div>
+            <div style="text-align: center; padding: 10px;">
+                <div style="background: #17a2b8; color: white; width: 30px; height: 30px; line-height: 30px; border-radius: 50%; margin: 0 auto;">2</div>
+                <div>已付款</div>
+            </div>
+            <div style="text-align: center; padding: 10px;">
+                <div style="background: #007bff; color: white; width: 30px; height: 30px; line-height: 30px; border-radius: 50%; margin: 0 auto;">3</div>
+                <div>已发货</div>
+            </div>
+            <div style="text-align: center; padding: 10px;">
+                <div style="background: #28a745; color: white; width: 30px; height: 30px; line-height: 30px; border-radius: 50%; margin: 0 auto;">4</div>
+                <div>已完成</div>
+            </div>
+        </div>
+        <div class="mt-3">
+            <small class="text-muted">
+                订单流程：待付款 → 已付款 → 已发货 → 已完成<br>
+                您可以在相应阶段进行付款或确认收货操作。
+            </small>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
