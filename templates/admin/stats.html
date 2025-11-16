@@ -15,6 +15,9 @@
                     <a href="{{ url_for('admin_products') }}" class="nav-link">商品管理</a>
                 </li>
                 <li class="nav-item">
+                    <a href="{{ url_for('admin_categories') }}" class="nav-link {% if request.endpoint == 'admin_categories' %}active{% endif %}">分类管理</a>
+                </li>
+                <li class="nav-item">
                     <a href="{{ url_for('admin_orders') }}" class="nav-link">订单管理</a>
                 </li>
                 <li class="nav-item">
