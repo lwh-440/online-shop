@@ -19,8 +19,11 @@
             
             <div style="margin-bottom: 1.5rem;">
                 <span class="product-stock">库存: {{ product.stock }}</span>
-                <span style="margin-left: 1rem; color: #666;">分类: {{ product.category }}</span>
-            </div>
+                
+                <span style="margin-left: 1rem; color: #666;">
+                    分类: {{ product.category_id or '未分类' }}
+                </span>
+            </div>id
             
             <div style="margin-bottom: 2rem;">
                 <h3 style="margin-bottom: 0.5rem;">商品描述</h3>
