@@ -308,11 +308,20 @@ def checkout():
             JOIN products p ON c.product_id = p.id 
             WHERE c.user_id = %s
         """, (current_user.id,))
-        cart_items = cursor.fetchall()
+        cart_items_rows = cursor.fetchall()
         
-        if not cart_items:
+        if not cart_items_rows:
             flash('购物车为空', 'error')
             return redirect(url_for('cart'))
+        
+        # 转换购物车项目
+        cart_items = []
+        for row in cart_items_rows:
+            if isinstance(row, tuple):
+                keys = ['id', 'user_id', 'product_id', 'quantity', 'created_at', 'name', 'price', 'stock']
+                cart_items.append(dict(zip(keys, row)))
+            else:
+                cart_items.append(row)
         
         # 检查库存
         for item in cart_items:
@@ -368,8 +377,33 @@ def checkout():
         flash('订单创建成功！已发送确认邮件', 'success')
         return redirect(url_for('order_history'))
     
-    return render_template('order/checkout.html')
-
+    # GET请求：显示结算页面，需要传递购物车数据
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT c.*, p.name, p.price, p.image_url, p.stock 
+        FROM cart_items c 
+        JOIN products p ON c.product_id = p.id 
+        WHERE c.user_id = %s
+    """, (current_user.id,))
+    cart_items_rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    # 转换购物车项目
+    cart_items = []
+    for row in cart_items_rows:
+        if isinstance(row, tuple):
+            # 根据查询的字段顺序创建字典
+            keys = ['id', 'user_id', 'product_id', 'quantity', 'created_at', 'name', 'price', 'image_url', 'stock']
+            cart_items.append(dict(zip(keys, row)))
+        else:
+            cart_items.append(row)
+    
+    total = sum(item['price'] * item['quantity'] for item in cart_items)
+    
+    return render_template('order/checkout.html', cart_items=cart_items, total=total)
+    
 @app.route('/orders')
 @login_required
 def order_history():
