@@ -138,31 +138,60 @@ def logout():
 @app.route('/products')
 def product_list():
     search = request.args.get('search', '')
-    category = request.args.get('category', '')
+    category_id = request.args.get('category_id', '')
     
+    # 获取分类列表
     conn = get_db_connection()
     cursor = conn.cursor()
+    cursor.execute("SELECT * FROM categories ORDER BY name")
+    categories_rows = cursor.fetchall()
     
-    query = "SELECT * FROM products WHERE stock > 0"
+    categories = []
+    for row in categories_rows:
+        if isinstance(row, tuple):
+            keys = ['id', 'name', 'description', 'created_at']
+            categories.append(dict(zip(keys, row)))
+        else:
+            categories.append(row)
+    
+    # 构建商品查询
+    query = """
+        SELECT p.*, c.name as category_name 
+        FROM products p 
+        LEFT JOIN categories c ON p.category_id = c.id 
+        WHERE p.stock > 0
+    """
     params = []
     
     if search:
-        query += " AND name LIKE %s"
+        query += " AND p.name LIKE %s"
         params.append(f'%{search}%')
     
-    if category:
-        query += " AND category = %s"
-        params.append(category)
+    if category_id:
+        query += " AND p.category_id = %s"
+        params.append(category_id)
     
-    query += " ORDER BY created_at DESC"
+    query += " ORDER BY p.created_at DESC"
     
     cursor.execute(query, params)
     products_rows = cursor.fetchall()
     cursor.close()
     conn.close()
     
-    products = rows_to_products(products_rows)
-    return render_template('product/list.html', products=products, search=search, category=category)
+    # 转换商品数据
+    products = []
+    for row in products_rows:
+        if isinstance(row, tuple):
+            keys = ['id', 'name', 'description', 'price', 'stock', 'category_id', 'image_url', 'created_at', 'category_name']
+            products.append(dict(zip(keys, row)))
+        else:
+            products.append(row)
+    
+    return render_template('product/list.html', 
+                         products=products, 
+                         categories=categories,
+                         search=search, 
+                         category_id=category_id)
 
 @app.route('/product/<int:product_id>')
 def product_detail(product_id):
@@ -403,7 +432,8 @@ def checkout():
     total = sum(item['price'] * item['quantity'] for item in cart_items)
     
     return render_template('order/checkout.html', cart_items=cart_items, total=total)
-    
+
+
 @app.route('/orders')
 @login_required
 def order_history():
@@ -510,12 +540,26 @@ def admin_products():
         flash('无权访问', 'error')
         return redirect(url_for('index'))
     
+    # 获取分类列表
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM categories ORDER BY name")
+    categories_rows = cursor.fetchall()
+    
+    categories = []
+    for row in categories_rows:
+        if isinstance(row, tuple):
+            keys = ['id', 'name', 'description', 'created_at']
+            categories.append(dict(zip(keys, row)))
+        else:
+            categories.append(row)
+    
     if request.method == 'POST':
         name = request.form['name']
         description = request.form['description']
         price = float(request.form['price'])
         stock = int(request.form['stock'])
-        category = request.form['category']
+        category_id = int(request.form['category_id'])
         
         # 处理图片上传
         image_url = 'images/default-product.jpg'
@@ -525,11 +569,14 @@ def admin_products():
                 filename = save_image(file)
                 image_url = f'uploads/products/{filename}'
         
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        # 获取分类名称用于兼容性
+        cursor.execute("SELECT name FROM categories WHERE id = %s", (category_id,))
+        category_result = cursor.fetchone()
+        category_name = category_result[0] if category_result else ''
+        
         cursor.execute(
-            "INSERT INTO products (name, description, price, stock, category, image_url, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (name, description, price, stock, category, image_url, datetime.datetime.now())
+            "INSERT INTO products (name, description, price, stock, category_id, category, image_url, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            (name, description, price, stock, category_id, category_name, image_url, datetime.datetime.now())
         )
         conn.commit()
         cursor.close()
@@ -538,15 +585,27 @@ def admin_products():
         flash('商品添加成功', 'success')
         return redirect(url_for('admin_products'))
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM products ORDER BY created_at DESC")
+    # 获取商品列表（包含分类名称）
+    cursor.execute("""
+        SELECT p.*, c.name as category_name 
+        FROM products p 
+        LEFT JOIN categories c ON p.category_id = c.id 
+        ORDER BY p.created_at DESC
+    """)
     products_rows = cursor.fetchall()
     cursor.close()
     conn.close()
     
-    products = rows_to_products(products_rows)
-    return render_template('admin/product_manage.html', products=products)
+    # 转换商品数据
+    products = []
+    for row in products_rows:
+        if isinstance(row, tuple):
+            keys = ['id', 'name', 'description', 'price', 'stock', 'category_id', 'category', 'image_url', 'created_at', 'category_name']
+            products.append(dict(zip(keys, row)))
+        else:
+            products.append(row)
+    
+    return render_template('admin/product_manage.html', products=products, categories=categories)
 
 @app.route('/admin/product/edit/<int:product_id>', methods=['GET', 'POST'])
 @login_required
@@ -558,12 +617,24 @@ def edit_product(product_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # 获取分类列表
+    cursor.execute("SELECT * FROM categories ORDER BY name")
+    categories_rows = cursor.fetchall()
+    
+    categories = []
+    for row in categories_rows:
+        if isinstance(row, tuple):
+            keys = ['id', 'name', 'description', 'created_at']
+            categories.append(dict(zip(keys, row)))
+        else:
+            categories.append(row)
+    
     if request.method == 'POST':
         name = request.form['name']
         description = request.form['description']
         price = float(request.form['price'])
         stock = int(request.form['stock'])
-        category = request.form['category']
+        category_id = int(request.form['category_id'])
         
         # 处理图片上传
         image_url = request.form.get('current_image')
@@ -577,9 +648,14 @@ def edit_product(product_id):
                 filename = save_image(file)
                 image_url = f'uploads/products/{filename}'
         
+        # 获取分类名称用于兼容性
+        cursor.execute("SELECT name FROM categories WHERE id = %s", (category_id,))
+        category_result = cursor.fetchone()
+        category_name = category_result[0] if category_result else ''
+        
         cursor.execute(
-            "UPDATE products SET name=%s, description=%s, price=%s, stock=%s, category=%s, image_url=%s WHERE id=%s",
-            (name, description, price, stock, category, image_url, product_id)
+            "UPDATE products SET name=%s, description=%s, price=%s, stock=%s, category_id=%s, category=%s, image_url=%s WHERE id=%s",
+            (name, description, price, stock, category_id, category_name, image_url, product_id)
         )
         conn.commit()
         cursor.close()
@@ -588,18 +664,29 @@ def edit_product(product_id):
         flash('商品更新成功', 'success')
         return redirect(url_for('admin_products'))
     
-    cursor.execute("SELECT * FROM products WHERE id = %s", (product_id,))
+    # 获取商品信息（包含分类名称）
+    cursor.execute("""
+        SELECT p.*, c.name as category_name 
+        FROM products p 
+        LEFT JOIN categories c ON p.category_id = c.id 
+        WHERE p.id = %s
+    """, (product_id,))
     product_row = cursor.fetchone()
     cursor.close()
     conn.close()
     
-    product = dict_to_product(product_row)
-    
-    if not product:
+    if not product_row:
         flash('商品不存在', 'error')
         return redirect(url_for('admin_products'))
     
-    return render_template('admin/product_edit.html', product=product)
+    # 转换商品数据
+    if isinstance(product_row, tuple):
+        keys = ['id', 'name', 'description', 'price', 'stock', 'category_id', 'category', 'image_url', 'created_at', 'category_name']
+        product = dict(zip(keys, product_row))
+    else:
+        product = product_row
+    
+    return render_template('admin/product_edit.html', product=product, categories=categories)
 
 @app.route('/admin/product/delete/<int:product_id>')
 @login_required
@@ -762,6 +849,127 @@ def admin_stats():
     return render_template('admin/stats.html', 
                          sales_data=sales_data, 
                          popular_products=popular_products)
+
+# 分类管理页面
+@app.route('/admin/categories')
+@login_required
+def admin_categories():
+    if not current_user.is_admin:
+        flash('无权访问', 'error')
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM categories ORDER BY name")
+    categories_rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    
+    # 转换分类数据
+    categories = []
+    for row in categories_rows:
+        if isinstance(row, tuple):
+            keys = ['id', 'name', 'description', 'created_at']
+            categories.append(dict(zip(keys, row)))
+        else:
+            categories.append(row)
+    
+    return render_template('admin/categories.html', categories=categories)
+
+# 添加分类
+@app.route('/admin/category/add', methods=['POST'])
+@login_required
+def add_category():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': '无权访问'})
+    
+    name = request.form['name']
+    description = request.form.get('description', '')
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(
+            "INSERT INTO categories (name, description) VALUES (%s, %s)",
+            (name, description)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': '分类添加成功'})
+    except Exception as e:
+        conn.rollback()
+        cursor.close()
+        conn.close()
+        
+        if 'Duplicate entry' in str(e):
+            return jsonify({'success': False, 'message': '分类名称已存在'})
+        else:
+            return jsonify({'success': False, 'message': f'添加失败: {str(e)}'})
+
+# 编辑分类
+@app.route('/admin/category/edit/<int:category_id>', methods=['POST'])
+@login_required
+def edit_category(category_id):
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': '无权访问'})
+    
+    name = request.form['name']
+    description = request.form.get('description', '')
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(
+            "UPDATE categories SET name = %s, description = %s WHERE id = %s",
+            (name, description, category_id)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': '分类更新成功'})
+    except Exception as e:
+        conn.rollback()
+        cursor.close()
+        conn.close()
+        
+        if 'Duplicate entry' in str(e):
+            return jsonify({'success': False, 'message': '分类名称已存在'})
+        else:
+            return jsonify({'success': False, 'message': f'更新失败: {str(e)}'})
+
+# 删除分类
+@app.route('/admin/category/delete/<int:category_id>')
+@login_required
+def delete_category(category_id):
+    if not current_user.is_admin:
+        flash('无权访问', 'error')
+        return redirect(url_for('admin_categories'))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 检查是否有商品使用该分类
+    cursor.execute("SELECT COUNT(*) FROM products WHERE category_id = %s", (category_id,))
+    product_count = cursor.fetchone()[0]
+    
+    if product_count > 0:
+        flash('无法删除该分类，因为有商品正在使用它', 'error')
+        cursor.close()
+        conn.close()
+        return redirect(url_for('admin_categories'))
+    
+    cursor.execute("DELETE FROM categories WHERE id = %s", (category_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    flash('分类删除成功', 'success')
+    return redirect(url_for('admin_categories'))
 
 if __name__ == '__main__':
     init_db()
