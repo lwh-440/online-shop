@@ -9,7 +9,7 @@
             <h2>用户注册</h2>
         </div>
         <div class="card-body">
-            <form method="POST" action="{{ url_for('register') }}" class="needs-validation">
+            <form method="POST" action="{{ url_for('register') }}" id="registerForm">
                 <div class="form-group">
                     <label for="username" class="form-label">用户名</label>
                     <input type="text" class="form-control" id="username" name="username" required minlength="3" maxlength="20">
@@ -19,10 +19,19 @@
                     <label for="email" class="form-label">邮箱</label>
                     <input type="email" class="form-control" id="email" name="email" required>
                 </div>
+
+                <div class="form-group">
+                    <label for="code" class="form-label">验证码</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" class="form-control" id="code" name="code" required>
+                        <button type="button" id="sendCodeBtn" class="btn btn-outline" style="white-space: nowrap;">发送验证码</button>
+                    </div>
+                </div>
                 
                 <div class="form-group">
                     <label for="password" class="form-label">密码</label>
-                    <input type="password" class="form-control" id="password" name="password" required minlength="6">
+                    <input type="password" class="form-control" id="password" name="password" required>
+                    <small id="passwordHelp" class="form-text text-muted">至少8位，包含大小写字母、数字和特殊字符</small>
                 </div>
                 
                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">注册</button>
@@ -34,4 +43,52 @@
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('sendCodeBtn').addEventListener('click', function() {
+    let email = document.getElementById('email').value;
+    if (!email) {
+        alert('请先输入邮箱');
+        return;
+    }
+    let btn = this;
+    btn.disabled = true;
+    btn.textContent = '发送中...';
+    fetch('/send_code', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email: email})
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            alert('验证码已发送，请查看邮箱');
+            // 倒计时
+            let sec = 60;
+            let timer = setInterval(() => {
+                btn.textContent = sec + '秒后重发';
+                sec--;
+                if (sec < 0) {
+                    clearInterval(timer);
+                    btn.textContent = '重新发送';
+                    btn.disabled = false;
+                }
+            }, 1000);
+        } else {
+            alert(data.message);
+            btn.disabled = false;
+            btn.textContent = '发送验证码';
+        }
+    });
+});
+
+document.getElementById('registerForm').addEventListener('submit', function(e) {
+    let pwd = document.getElementById('password').value;
+    // 前端简单验证
+    if (pwd.length < 8) {
+        e.preventDefault();
+        alert('密码长度至少8位');
+    }
+});
+</script>
 {% endblock %}

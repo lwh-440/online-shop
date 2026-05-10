@@ -396,11 +396,24 @@ body {
 }
 
 /* 管理后台样式 */
+/* 管理后台侧边栏 */
 .admin-sidebar {
     background-color: #343a40;
     color: white;
     min-height: calc(100vh - 56px);
     padding: 0;
+    overflow-y: auto;        /* 允许垂直滚动 */
+}
+
+.admin-sidebar .navbar-nav {
+    flex-direction: column;  /* 强制垂直排列 */
+    display: block;          /* 确保块级布局 */
+    width: 100%;
+}
+
+.admin-sidebar .nav-item {
+    display: block;          /* 每个菜单项占一行 */
+    margin: 0;
 }
 
 .admin-sidebar .nav-link {
@@ -408,6 +421,7 @@ body {
     padding: 0.75rem 1rem;
     border-radius: 0;
     border-left: 3px solid transparent;
+    display: block;          /* 确保链接填满宽度 */
 }
 
 .admin-sidebar .nav-link:hover,
@@ -416,7 +430,6 @@ body {
     background-color: #495057;
     border-left-color: #007bff;
 }
-
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

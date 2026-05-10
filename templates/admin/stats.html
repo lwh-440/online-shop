@@ -2,60 +2,46 @@
 
 {% block title %}销售统计 - 在线购物网站{% endblock %}
 
+{% block extra_css %}
+<!-- 引入 ECharts -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div style="display: flex;">
-        <!-- 侧边栏 -->
         <div class="admin-sidebar" style="width: 250px; min-height: calc(100vh - 56px);">
             <ul class="navbar-nav" style="padding: 1rem 0;">
-                <li class="nav-item">
-                    <a href="{{ url_for('admin_dashboard') }}" class="nav-link">仪表盘</a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ url_for('admin_products') }}" class="nav-link">商品管理</a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ url_for('admin_orders') }}" class="nav-link">订单管理</a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ url_for('admin_stats') }}" class="nav-link active">销售统计</a>
-                </li>
+                <li class="nav-item"><a href="{{ url_for('admin_dashboard') }}" class="nav-link">仪表盘</a></li>
+                <li class="nav-item"><a href="{{ url_for('admin_products') }}" class="nav-link">商品管理</a></li>
+                <li class="nav-item"><a href="{{ url_for('admin_orders') }}" class="nav-link">订单管理</a></li>
+                <li class="nav-item"><a href="{{ url_for('admin_stats') }}" class="nav-link active">销售统计</a></li>
+                {% if current_user.is_admin %}
+                <li class="nav-item"><a href="{{ url_for('admin_users') }}" class="nav-link">用户管理</a></li>
+                <li class="nav-item"><a href="{{ url_for('sales_performance') }}" class="nav-link">销售业绩</a></li>
+                <li class="nav-item"><a href="{{ url_for('browsing_logs') }}" class="nav-link">浏览日志</a></li>
+                <li class="nav-item"><a href="{{ url_for('operation_logs') }}" class="nav-link">操作日志</a></li>
+                {% endif %}
             </ul>
         </div>
 
-        <!-- 主内容区 -->
         <div style="flex: 1; padding: 2rem;">
             <h1 style="margin-bottom: 2rem;">销售统计</h1>
 
-            <div class="card">
+            <!-- 销售趋势图 -->
+            <div class="card" style="margin-bottom: 2rem;">
                 <div class="card-header">
                     <h3>近期销售趋势</h3>
                 </div>
                 <div class="card-body">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>日期</th>
-                                <th>订单数</th>
-                                <th>销售额</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for data in sales_data %}
-                                <tr>
-                                    <td>{{ data.date }}</td>
-                                    <td>{{ data.order_count }}</td>
-                                    <td>¥{{ "%.2f"|format(data.revenue) }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    <div id="sales-chart" style="width: 100%; height: 400px;"></div>
                 </div>
             </div>
 
+            <!-- 热门商品排行榜 -->
             <div class="card" style="margin-top: 2rem;">
                 <div class="card-header">
-                    <h3>热门商品</h3>
+                    <h3>热门商品排行榜</h3>
                 </div>
                 <div class="card-body">
                     <table class="table">
@@ -79,4 +65,57 @@
         </div>
     </div>
 </div>
+
+<script>
+// 销售趋势折线图
+var chartDom = document.getElementById('sales-chart');
+var myChart = echarts.init(chartDom);
+var option = {
+    title: {
+        text: '最近30天销售额与订单数'
+    },
+    tooltip: {
+        trigger: 'axis'
+    },
+    legend: {
+        data: ['销售额', '订单数']
+    },
+    xAxis: {
+        type: 'category',
+        data: {{ chart_dates|tojson }}
+    },
+    yAxis: [
+        {
+            type: 'value',
+            name: '销售额 (¥)'
+        },
+        {
+            type: 'value',
+            name: '订单数'
+        }
+    ],
+    series: [
+        {
+            name: '销售额',
+            type: 'line',
+            data: {{ chart_revenues|tojson }},
+            smooth: true,
+            yAxisIndex: 0
+        },
+        {
+            name: '订单数',
+            type: 'line',
+            data: {{ chart_orders|tojson }},
+            smooth: true,
+            yAxisIndex: 1
+        }
+    ]
+};
+myChart.setOption(option);
+
+// 响应式调整
+window.addEventListener('resize', function() {
+    myChart.resize();
+});
+</script>
 {% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}退款审核 - 在线购物网站{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 700px; margin: 2rem auto;">
+    <div class="card">
+        <div class="card-header">
+            <h3>退款审核 - 订单 #{{ order.id }}</h3>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6"><strong>申请人：</strong> {{ order.username }}</div>
+                <div class="col-md-6"><strong>订单金额：</strong> ¥{{ "%.2f"|format(order.total_amount) }}</div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6"><strong>退款前状态：</strong> {{ order.prev_status }}</div>
+                <div class="col-md-6"><strong>申请类型：</strong> 
+                    {% if order.refund_type == 'return_refund' %}退货退款{% else %}仅退款{% endif %}
+                </div>
+            </div>
+            <div class="mb-3">
+                <strong>退款原因：</strong>
+                <p class="form-control-static">{{ order.refund_reason or '未提供' }}</p>
+            </div>
+            <div class="mb-3">
+                <strong>凭据图片：</strong><br>
+                {% if order.refund_evidence %}
+                    <img src="{{ url_for('static', filename=order.refund_evidence) }}" alt="退款凭据" style="max-width: 100%; max-height: 300px;">
+                {% else %}
+                    <span class="text-muted">未上传</span>
+                {% endif %}
+            </div>
+            <hr>
+            <form method="POST">
+                <div class="mb-3">
+                    <button type="submit" name="action" value="approve" class="btn btn-success">同意退款</button>
+                    <button type="button" class="btn btn-danger" onclick="document.getElementById('reject-form').style.display='block'">拒绝退款</button>
+                </div>
+                <div id="reject-form" style="display:none;">
+                    <div class="form-group">
+                        <label for="reject_reason">拒绝理由（可选）</label>
+                        <textarea class="form-control" id="reject_reason" name="reject_reason" rows="2"></textarea>
+                    </div>
+                    <button type="submit" name="action" value="reject" class="btn btn-outline-danger">确认拒绝</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

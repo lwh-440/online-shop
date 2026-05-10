@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}用户管理 - 在线购物网站{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div style="display: flex;">
+        <!-- 侧边栏 -->
+        <div class="admin-sidebar" style="width: 250px; min-height: calc(100vh - 56px);">
+            <ul class="navbar-nav" style="padding: 1rem 0;">
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_dashboard') }}" class="nav-link">仪表盘</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_products') }}" class="nav-link">商品管理</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_orders') }}" class="nav-link">订单管理</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_stats') }}" class="nav-link">销售统计</a>
+                </li>
+                {% if current_user.is_admin %}
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_users') }}" class="nav-link active">用户管理</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('sales_performance') }}" class="nav-link">销售业绩</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('browsing_logs') }}" class="nav-link">浏览日志</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('operation_logs') }}" class="nav-link">操作日志</a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <!-- 主内容区 -->
+        <div style="flex: 1; padding: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h1>用户管理</h1>
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('addUserForm').style.display='block'">
+                    添加销售/管理员
+                </button>
+            </div>
+
+            <!-- 添加用户表单（默认隐藏） -->
+            <div id="addUserForm" style="display:none; margin-bottom: 2rem;" class="card">
+                <div class="card-header">
+                    <h5>添加新用户</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('add_user') }}">
+                        <div class="form-group">
+                            <label for="username" class="form-label">用户名</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email" class="form-label">邮箱</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password" class="form-label">密码</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="role" class="form-label">角色</label>
+                            <select class="form-control" id="role" name="role" required>
+                                <option value="sales">销售人员</option>
+                                <option value="admin" {% if current_user.is_admin %}selected{% endif %}>管理员</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">添加用户</button>
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('addUserForm').style.display='none'">取消</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 用户列表 -->
+            <div class="card">
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>用户名</th>
+                                <th>邮箱</th>
+                                <th>角色</th>
+                                <th>注册时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                                <tr>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        {% if user.role == 'admin' %}管理员{% else %}销售人员{% endif %}
+                                    </td>
+                                    <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-warning" onclick="showResetForm({{ user.id }}, '{{ user.username }}')">重置密码</button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 重置密码模态框 -->
+<div id="resetPasswordModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000;">
+    <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:white; padding:2rem; border-radius:8px; width:400px;">
+        <h5>重置密码</h5>
+        <form id="resetPasswordForm" method="POST" action="{{ url_for('reset_password', user_id=0) }}">
+            <input type="hidden" id="resetUserId" name="user_id">
+            <div class="form-group">
+                <label>用户：<span id="resetUserName"></span></label>
+            </div>
+            <div class="form-group">
+                <label for="newPassword" class="form-label">新密码</label>
+                <input type="password" class="form-control" id="newPassword" name="new_password" required minlength="6">
+            </div>
+            <button type="submit" class="btn btn-primary">确认重置</button>
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('resetPasswordModal').style.display='none'">取消</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function showResetForm(userId, username) {
+    document.getElementById('resetUserId').value = userId;
+    document.getElementById('resetUserName').innerText = username;
+    document.getElementById('resetPasswordForm').action = "{{ url_for('reset_password', user_id=0) }}".replace('0', userId);
+    document.getElementById('resetPasswordModal').style.display = 'block';
+}
+</script>
+{% endblock %}

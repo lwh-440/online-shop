@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}浏览日志 - 在线购物网站{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div style="display: flex;">
+        <div class="admin-sidebar" style="width: 250px; min-height: calc(100vh - 56px);">
+            <ul class="navbar-nav" style="padding: 1rem 0;">
+                <li class="nav-item"><a href="{{ url_for('admin_dashboard') }}" class="nav-link">仪表盘</a></li>
+                <li class="nav-item"><a href="{{ url_for('admin_products') }}" class="nav-link">商品管理</a></li>
+                <li class="nav-item"><a href="{{ url_for('admin_orders') }}" class="nav-link">订单管理</a></li>
+                <li class="nav-item"><a href="{{ url_for('admin_stats') }}" class="nav-link">销售统计</a></li>
+                {% if current_user.is_admin %}
+                <li class="nav-item"><a href="{{ url_for('admin_users') }}" class="nav-link">用户管理</a></li>
+                <li class="nav-item"><a href="{{ url_for('sales_performance') }}" class="nav-link">销售业绩</a></li>
+                <li class="nav-item"><a href="{{ url_for('browsing_logs') }}" class="nav-link active">浏览日志</a></li>
+                <li class="nav-item"><a href="{{ url_for('operation_logs') }}" class="nav-link">操作日志</a></li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <div style="flex: 1; padding: 2rem;">
+            <h1 style="margin-bottom: 2rem;">用户浏览日志</h1>
+
+            <div class="card">
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>用户</th>
+                                <th>商品</th>
+                                <th>开始时间</th>
+                                <th>结束时间</th>
+                                <th>停留时长(秒)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                                <tr>
+                                    <td>{{ log.username }}</td>
+                                    <td>{{ log.product_name }}</td>
+                                    <td>{{ log.start_time.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                    <td>{{ log.end_time.strftime('%Y-%m-%d %H:%M:%S') if log.end_time else '浏览中' }}</td>
+                                    <td>{{ log.duration if log.duration else '-' }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <!-- 简单分页（可优化） -->
+                    <div style="display: flex; justify-content: center; gap: 1rem; margin-top: 1rem;">
+                        {% if page > 1 %}
+                            <a href="?page={{ page - 1 }}" class="btn btn-sm btn-outline">上一页</a>
+                        {% endif %}
+                        <span>第 {{ page }} 页</span>
+                        <a href="?page={{ page + 1 }}" class="btn btn-sm btn-outline">下一页</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

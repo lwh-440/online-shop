@@ -30,9 +30,9 @@
                             <a href="{{ url_for('order_history') }}" class="nav-link {% if request.endpoint == 'order_history' %}active{% endif %}">我的订单</a>
                         </li>
                         
-                        {% if current_user.is_admin %}
-                            <li class="nav-item">
-                                <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if request.endpoint.startswith('admin') %}active{% endif %}">管理后台</a>
+                        {% if current_user.is_authenticated and (current_user.is_admin or current_user.is_sales) %}
+                             <li class="nav-item">
+                                 <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if request.endpoint.startswith('admin') %}active{% endif %}">管理后台</a>
                             </li>
                         {% endif %}
                         

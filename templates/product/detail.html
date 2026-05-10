@@ -9,24 +9,24 @@
         <div>
             <img src="{{ url_for('static', filename=product.image_url) }}" alt="{{ product.name }}" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
         </div>
-        
+
         <!-- 商品信息 -->
         <div>
             <h1 style="font-size: 2rem; margin-bottom: 1rem;">{{ product.name }}</h1>
             <div style="font-size: 2rem; color: #007bff; font-weight: bold; margin-bottom: 1rem;">
                 ¥{{ "%.2f"|format(product.price) }}
             </div>
-            
+
             <div style="margin-bottom: 1.5rem;">
                 <span class="product-stock">库存: {{ product.stock }}</span>
                 <span style="margin-left: 1rem; color: #666;">分类: {{ product.category }}</span>
             </div>
-            
+
             <div style="margin-bottom: 2rem;">
                 <h3 style="margin-bottom: 0.5rem;">商品描述</h3>
                 <p style="line-height: 1.6; color: #555;">{{ product.description }}</p>
             </div>
-            
+
             {% if product.stock > 0 %}
                 <form method="POST" action="{{ url_for('add_to_cart') }}" style="display: flex; gap: 1rem; align-items: center;">
                     <input type="hidden" name="product_id" value="{{ product.id }}">
@@ -39,11 +39,82 @@
             {% else %}
                 <button class="btn btn-secondary" disabled>暂时缺货</button>
             {% endif %}
-            
+
             <div style="margin-top: 2rem;">
                 <a href="{{ url_for('product_list') }}" class="btn btn-outline">返回商品列表</a>
             </div>
         </div>
     </div>
+
+    <!-- 推荐区域1：购买了此商品的人也买过 -->
+    {% if recommendations %}
+    <div style="margin-top: 3rem;">
+        <h2 style="margin-bottom: 1.5rem;">购买了此商品的人也买过</h2>
+        <div class="products-grid">
+            {% for rec in recommendations %}
+                <div class="product-card">
+                    <img src="{{ url_for('static', filename=rec.image_url) }}" alt="{{ rec.name }}" class="product-image">
+                    <div class="product-info">
+                        <h3 class="product-name">{{ rec.name }}</h3>
+                        <div class="product-price">¥{{ "%.2f"|format(rec.price) }}</div>
+                        <div class="product-stock">库存: {{ rec.stock }}</div>
+                        <a href="{{ url_for('product_detail', product_id=rec.id) }}" class="btn btn-primary" style="width: 100%;">查看详情</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 推荐区域2：猜你感兴趣 -->
+    {% if interest_products %}
+    <div style="margin-top: 3rem;">
+        <h2 style="margin-bottom: 1.5rem;">猜你感兴趣</h2>
+        <div class="products-grid">
+            {% for rec in interest_products %}
+                <div class="product-card">
+                    <img src="{{ url_for('static', filename=rec.image_url) }}" alt="{{ rec.name }}" class="product-image">
+                    <div class="product-info">
+                        <h3 class="product-name">{{ rec.name }}</h3>
+                        <div class="product-price">¥{{ "%.2f"|format(rec.price) }}</div>
+                        <div class="product-stock">库存: {{ rec.stock }}</div>
+                        <a href="{{ url_for('product_detail', product_id=rec.id) }}" class="btn btn-primary" style="width: 100%;">查看详情</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 </div>
+
+<!-- 浏览行为记录脚本 -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let logId = null;
+    let productId = {{ product.id }};
+    fetch('/api/browsing/start', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ product_id: productId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.log_id) {
+            logId = data.log_id;
+        }
+    })
+    .catch(err => console.error('浏览开始记录失败:', err));
+
+    window.addEventListener('beforeunload', function() {
+        if (logId) {
+            fetch('/api/browsing/end', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ log_id: logId }),
+                keepalive: true
+            });
+        }
+    });
+});
+</script>
 {% endblock %}

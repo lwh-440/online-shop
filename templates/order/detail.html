@@ -20,6 +20,8 @@
                         {% elif order.status == 'shipped' %}已发货
                         {% elif order.status == 'completed' %}已完成
                         {% elif order.status == 'cancelled' %}已取消
+                        {% elif order.status == 'refunding' %}退款中
+                        {% elif order.status == 'refunded' %}退款成功
                         {% else %}{{ order.status }}{% endif %}
                     </span>
                 </div>
@@ -63,11 +65,20 @@
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
-    </div>
 
-    <div style="margin-top: 2rem;">
-        <a href="{{ url_for('order_history') }}" class="btn btn-outline">返回订单列表</a>
+            <!-- 操作按钮区 -->
+            <div style="margin-top: 2rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                <a href="{{ url_for('order_history') }}" class="btn btn-outline">返回订单列表</a>
+                {% if order.status == 'pending' %}
+                    <a href="{{ url_for('pay_order', order_id=order.id) }}" class="btn btn-primary">去付款</a>
+                {% elif order.status == 'paid' or order.status == 'shipped' %}
+                    <a href="{{ url_for('refund_order', order_id=order.id) }}" class="btn btn-warning">申请退款</a>
+                {% endif %}
+                {% if order.status == 'shipped' %}
+                    <a href="{{ url_for('receive_order', order_id=order.id) }}" class="btn btn-success">确认收货</a>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

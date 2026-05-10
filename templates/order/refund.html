@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}申请退款 - 在线购物网站{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 500px; margin: 3rem auto;">
+    <div class="card">
+        <div class="card-header">
+            <h3>申请退款 - 订单 #{{ order.id }}</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label class="form-label">退款类型</label>
+                    <div>
+                        <label><input type="radio" name="refund_type" value="only_refund" checked> 仅退款</label>
+                        <label style="margin-left: 1.5rem;"><input type="radio" name="refund_type" value="return_refund"> 退货退款</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="reason" class="form-label">退款原因</label>
+                    <textarea class="form-control" id="reason" name="reason" rows="3" required placeholder="请详细描述退款原因"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="evidence" class="form-label">上传凭据（选填）</label>
+                    <input type="file" class="form-control" id="evidence" name="evidence" accept="image/*">
+                </div>
+                <button type="submit" class="btn btn-warning" style="width:100%;">提交退款申请</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

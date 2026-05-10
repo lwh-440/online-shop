@@ -5,8 +5,8 @@
 {% block content %}
 <div class="container-fluid">
     <div style="display: flex;">
-        <!-- 侧边栏 -->
-        <div class="admin-sidebar" style="width: 250px; min-height: calc(100vh - 56px);">
+        <!-- 侧边栏（可滚动） -->
+        <div class="admin-sidebar" style="width: 250px; min-height: calc(100vh - 56px); overflow-y: auto;">
             <ul class="navbar-nav" style="padding: 1rem 0;">
                 <li class="nav-item">
                     <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}">仪表盘</a>
@@ -20,12 +20,36 @@
                 <li class="nav-item">
                     <a href="{{ url_for('admin_stats') }}" class="nav-link {% if request.endpoint == 'admin_stats' %}active{% endif %}">销售统计</a>
                 </li>
+                {% if current_user.role == 'admin' %}
+                <li class="nav-item">
+                    <a href="{{ url_for('admin_users') }}" class="nav-link {% if request.endpoint == 'admin_users' %}active{% endif %}">用户管理</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('sales_performance') }}" class="nav-link {% if request.endpoint == 'sales_performance' %}active{% endif %}">销售业绩</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('browsing_logs') }}" class="nav-link {% if request.endpoint == 'browsing_logs' %}active{% endif %}">浏览日志</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('operation_logs') }}" class="nav-link {% if request.endpoint == 'operation_logs' %}active{% endif %}">操作日志</a>
+                </li>
+                {% endif %}
             </ul>
         </div>
 
         <!-- 主内容区 -->
         <div style="flex: 1; padding: 2rem;">
             <h1>管理后台</h1>
+
+            <!-- 异常告警区域（仅当存在异常数据时显示） -->
+            {% if anomaly %}
+            <div class="alert alert-warning" style="margin-bottom: 2rem;">
+                <strong>⚠ 销售异常警告：</strong>
+                最近24小时销售额为 ¥{{ "%.2f"|format(anomaly.today_sales) }}，
+                相比过去7天日均 ¥{{ "%.2f"|format(anomaly.avg_7d) }} 增长 {{ "%.0f"|format(anomaly.ratio * 100) }}%，
+                可能存在异常波动，请关注。
+            </div>
+            {% endif %}
 
             <div class="stats-grid">
                 <div class="stat-card">
@@ -52,6 +76,9 @@
                     <a href="{{ url_for('admin_products') }}" class="btn btn-primary">管理商品</a>
                     <a href="{{ url_for('admin_orders') }}" class="btn btn-primary">处理订单</a>
                     <a href="{{ url_for('admin_stats') }}" class="btn btn-primary">查看统计</a>
+                    {% if current_user.role == 'admin' %}
+                    <a href="{{ url_for('admin_bigscreen') }}" class="btn btn-primary">数据大屏</a>
+                    {% endif %}
                 </div>
             </div>
         </div>

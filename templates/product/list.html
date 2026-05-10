@@ -4,23 +4,25 @@
 
 {% block content %}
 <div class="container">
-    <div style="display: flex; justify-content: between; align-items: center; margin: 2rem 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin: 2rem 0; flex-wrap: wrap; gap: 1rem;">
         <h1>商品列表</h1>
-        
+
         <!-- 搜索和筛选 -->
-        <form method="GET" action="{{ url_for('product_list') }}" style="display: flex; gap: 1rem; align-items: center;">
-            <input type="text" name="search" class="form-control" placeholder="搜索商品..." value="{{ search }}" style="width: 200px;">
-            <select name="category" class="form-control" style="width: 150px;">
+        <form method="GET" action="{{ url_for('product_list') }}" id="filterForm" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <!-- 分类下拉：切换自动提交 -->
+            <select name="category" class="form-control" style="width: 150px;" onchange="this.form.submit()">
                 <option value="">所有分类</option>
                 <option value="electronics" {% if category == 'electronics' %}selected{% endif %}>电子产品</option>
                 <option value="clothing" {% if category == 'clothing' %}selected{% endif %}>服装</option>
                 <option value="shoes" {% if category == 'shoes' %}selected{% endif %}>鞋类</option>
                 <option value="books" {% if category == 'books' %}selected{% endif %}>图书</option>
             </select>
+            <!-- 搜索框：只有点击搜索按钮或回车才提交 -->
+            <input type="text" name="search" class="form-control" placeholder="搜索商品..." value="{{ search }}" style="width: 200px;">
             <button type="submit" class="btn btn-primary">搜索</button>
         </form>
     </div>
-    
+
     {% if products %}
         <div class="products-grid">
             {% for product in products %}

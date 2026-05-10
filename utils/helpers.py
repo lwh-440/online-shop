@@ -90,3 +90,17 @@ def rows_to_users(rows):
     for row in rows:
         users.append(dict_to_user(row))
     return users
+
+def check_password_strength(password):
+    """检查密码强度，返回 (bool, str)"""
+    if len(password) < 8:
+        return False, "密码长度至少8位"
+    if not any(c.isupper() for c in password):
+        return False, "密码必须包含大写字母"
+    if not any(c.islower() for c in password):
+        return False, "密码必须包含小写字母"
+    if not any(c.isdigit() for c in password):
+        return False, "密码必须包含数字"
+    if not any(c in '!@#$%^&*()-_=+[]{};:,.<>?/~' for c in password):
+        return False, "密码必须包含特殊字符(!@#$%^&*等)"
+    return True, "密码强度合格"
