@@ -268,20 +268,35 @@ def browsing_start():
 
 @app.route('/api/browsing/end', methods=['POST'])
 def browsing_end():
-    data = request.get_json()
-    if not data or 'log_id' not in data:
+    # 兼容 sendBeacon 发送的 JSON（Content-Type 可能不是 application/json）
+    data = request.get_json(force=True, silent=True) or {}
+    if not data:
+        try:
+            data = json.loads(request.get_data().decode('utf-8'))
+        except:
+            pass
+
+    log_id = data.get('log_id')
+    if not log_id:
         return jsonify({'error': 'Invalid data'}), 400
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     end_time = datetime.datetime.now()
-    cursor.execute("""
-        UPDATE browsing_logs
-        SET end_time = %s, duration = TIMESTAMPDIFF(SECOND, start_time, %s)
-        WHERE id = %s
-    """, (end_time, end_time, data['log_id']))
-    conn.commit()
-    cursor.close()
-    conn.close()
+
+    try:
+        cursor.execute("""
+            UPDATE browsing_logs
+            SET end_time = %s, duration = TIMESTAMPDIFF(SECOND, start_time, %s)
+            WHERE id = %s
+        """, (end_time, end_time, log_id))
+        conn.commit()
+    except Exception as e:
+        print(f"浏览结束记录失败: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
     return jsonify({'success': True})
 
 # ---------- 购物车 ----------
