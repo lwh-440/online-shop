@@ -11,7 +11,6 @@ def get_db_connection():
             database=Config.MYSQL_DB,
             buffered=True
         )
-        # 设置会话时区为北京时间
         cursor = conn.cursor()
         cursor.execute("SET time_zone = '+08:00'")
         cursor.close()
@@ -39,7 +38,7 @@ def init_db():
         )
     ''')
 
-    # ---------- 商品表（含 seller_id）----------
+    # ---------- 商品表 ----------
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS products (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -68,7 +67,7 @@ def init_db():
         )
     ''')
 
-    # ---------- 订单表（完整退款字段）----------
+    # ---------- 订单表 ----------
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS orders (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -86,28 +85,12 @@ def init_db():
         )
     ''')
 
-    # 兼容旧表：如果 orders 表已存在但缺少字段，自动添加
-    # 1. 添加 prev_status 列（退款前状态）
-    try:
-        cursor.execute("ALTER TABLE orders ADD COLUMN prev_status VARCHAR(20) DEFAULT NULL")
-    except:
-        pass
-    # 2. 添加 refund_reason 列（退款原因）
-    try:
-        cursor.execute("ALTER TABLE orders ADD COLUMN refund_reason TEXT DEFAULT NULL")
-    except:
-        pass
-    # 3. 添加 refund_type 列（退款类型：only_refund/return_refund）
-    try:
-        cursor.execute("ALTER TABLE orders ADD COLUMN refund_type VARCHAR(20) DEFAULT NULL")
-    except:
-        pass
-    # 4. 添加 refund_evidence 列（退款凭据路径）
-    try:
-        cursor.execute("ALTER TABLE orders ADD COLUMN refund_evidence VARCHAR(500) DEFAULT NULL")
-    except:
-        pass
-    # 5. 如果 status 枚举类型缺少 'refunding' 和 'refunded'，则修改列
+    # 兼容旧表添加字段
+    for col, dtype in [('prev_status', 'VARCHAR(20)'), ('refund_reason', 'TEXT'), ('refund_type', 'VARCHAR(20)'), ('refund_evidence', 'VARCHAR(500)')]:
+        try:
+            cursor.execute(f"ALTER TABLE orders ADD COLUMN {col} {dtype}")
+        except:
+            pass
     try:
         cursor.execute("ALTER TABLE orders MODIFY COLUMN status ENUM('pending','paid','shipped','completed','cancelled','refunding','refunded') DEFAULT 'pending'")
     except:
@@ -179,6 +162,22 @@ def init_db():
         )
     ''')
 
+    # ---------- 分类表 ----------
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS categories (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) UNIQUE NOT NULL
+        )
+    ''')
+
+    # 插入默认分类（如果不存在）
+    default_categories = ['electronics', 'clothing', 'shoes', 'books', '其他']
+    for cat in default_categories:
+        try:
+            cursor.execute("INSERT INTO categories (name) VALUES (%s)", (cat,))
+        except:
+            pass
+
     # ---------- 创建示例用户 ----------
     from werkzeug.security import generate_password_hash
     cursor.execute("SELECT * FROM users WHERE username = 'admin'")
@@ -217,4 +216,4 @@ def init_db():
     conn.commit()
     cursor.close()
     conn.close()
-    print("数据库初始化/升级完成（角色、日志、推荐、销售归属、退款字段均已就绪）")
+    print("数据库初始化/升级完成（角色、日志、推荐、销售归属、退款字段、分类管理均已就绪）")

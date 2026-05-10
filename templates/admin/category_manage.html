@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}分类管理 - 在线购物网站{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div style="display: flex;">
+        <!-- 侧边栏 -->
+        <div class="admin-sidebar" style="width: 250px; min-height: calc(100vh - 56px);">
+            <ul class="navbar-nav" style="padding: 1rem 0;">
+                <li class="nav-item"><a href="{{ url_for('admin_dashboard') }}" class="nav-link">仪表盘</a></li>
+                <li class="nav-item"><a href="{{ url_for('admin_products') }}" class="nav-link">商品管理</a></li>
+                <li class="nav-item"><a href="{{ url_for('admin_categories') }}" class="nav-link active">分类管理</a></li>
+                <li class="nav-item"><a href="{{ url_for('admin_orders') }}" class="nav-link">订单管理</a></li>
+                <li class="nav-item"><a href="{{ url_for('admin_stats') }}" class="nav-link">销售统计</a></li>
+                {% if current_user.is_admin %}
+                <li class="nav-item"><a href="{{ url_for('admin_users') }}" class="nav-link">用户管理</a></li>
+                <li class="nav-item"><a href="{{ url_for('sales_performance') }}" class="nav-link">销售业绩</a></li>
+                <li class="nav-item"><a href="{{ url_for('browsing_logs') }}" class="nav-link">浏览日志</a></li>
+                <li class="nav-item"><a href="{{ url_for('operation_logs') }}" class="nav-link">操作日志</a></li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <!-- 主内容区 -->
+        <div style="flex: 1; padding: 2rem;">
+            <h1 style="margin-bottom: 2rem;">分类管理</h1>
+
+            <!-- 添加分类表单 -->
+            <div class="card" style="margin-bottom: 2rem;">
+                <div class="card-header">添加新分类</div>
+                <div class="card-body">
+                    <form method="POST" class="form-inline">
+                        <input type="hidden" name="action" value="add">
+                        <div class="form-group">
+                            <input type="text" name="name" class="form-control" placeholder="分类名称" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="margin-left: 1rem;">添加</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 分类列表 -->
+            <div class="card">
+                <div class="card-header">现有分类</div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>分类名称</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cat in categories %}
+                                <tr>
+                                    <td>{{ cat.name }}</td>
+                                    <td>
+                                        {% if cat.name != '其他' %}
+                                            <form method="POST" style="display:inline;" onsubmit="return confirm('删除此分类会将所有该分类下的商品移至“其他”，确定吗？');">
+                                                <input type="hidden" name="action" value="delete">
+                                                <input type="hidden" name="id" value="{{ cat.id }}">
+                                                <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                                            </form>
+                                        {% else %}
+                                            <span class="text-muted">默认分类</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

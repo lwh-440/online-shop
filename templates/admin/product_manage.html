@@ -4,7 +4,6 @@
 
 {% block extra_css %}
 <style>
-    /* 弹窗遮罩 */
     .modal-overlay {
         display: none;
         position: fixed;
@@ -66,6 +65,7 @@
             <ul class="navbar-nav" style="padding: 1rem 0;">
                 <li class="nav-item"><a href="{{ url_for('admin_dashboard') }}" class="nav-link">仪表盘</a></li>
                 <li class="nav-item"><a href="{{ url_for('admin_products') }}" class="nav-link active">商品管理</a></li>
+                <li class="nav-item"><a href="{{ url_for('admin_categories') }}" class="nav-link">分类管理</a></li>
                 <li class="nav-item"><a href="{{ url_for('admin_orders') }}" class="nav-link">订单管理</a></li>
                 <li class="nav-item"><a href="{{ url_for('admin_stats') }}" class="nav-link">销售统计</a></li>
                 {% if current_user.is_admin %}
@@ -101,9 +101,7 @@
                         <tbody>
                             {% for product in products %}
                                 <tr>
-                                    <td>
-                                        <img src="{{ url_for('static', filename=product.image_url) }}" alt="{{ product.name }}" style="width: 50px; height: 50px; object-fit: cover;">
-                                    </td>
+                                    <td><img src="{{ url_for('static', filename=product.image_url) }}" alt="{{ product.name }}" style="width: 50px; height: 50px; object-fit: cover;"></td>
                                     <td>{{ product.name }}</td>
                                     <td>¥{{ "%.2f"|format(product.price) }}</td>
                                     <td>{{ product.stock }}</td>
@@ -137,7 +135,7 @@
     </div>
 </div>
 
-<!-- 添加商品弹窗（保持不变） -->
+<!-- 添加商品弹窗 -->
 <div class="modal-overlay" id="addProductModal">
     <div class="modal-dialog">
         <div class="modal-header">
@@ -164,10 +162,9 @@
             <div class="form-group">
                 <label for="category" class="form-label">分类</label>
                 <select class="form-control" id="category" name="category" required>
-                    <option value="electronics">电子产品</option>
-                    <option value="clothing">服装</option>
-                    <option value="shoes">鞋类</option>
-                    <option value="books">图书</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div class="form-group">

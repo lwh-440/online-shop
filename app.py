@@ -154,12 +154,10 @@ def register():
         password = request.form['password']
         code = request.form.get('code', '')
 
-        # 验证码检查
         if code != session.get('verify_code') or email != session.get('verify_email'):
             flash('验证码错误或已过期', 'error')
             return render_template('auth/register.html')
 
-        # 密码强度检查
         ok, msg = check_password_strength(password)
         if not ok:
             flash(msg, 'error')
@@ -216,7 +214,7 @@ def product_list():
     products = rows_to_products(products_rows)
     return render_template('product/list.html', products=products, search=search, category=category)
 
-# ---------- 商品详情（含双推荐）----------
+# ---------- 商品详情 ----------
 @app.route('/product/<int:product_id>')
 def product_detail(product_id):
     conn = get_db_connection()
@@ -228,7 +226,6 @@ def product_detail(product_id):
         flash('商品不存在', 'error')
         return redirect(url_for('product_list'))
 
-    # 订单共现推荐（购买了此商品的人也买过）
     similar_rows = get_recommendations(product_id, limit=4)
     similar_products = []
     for row in similar_rows:
@@ -236,7 +233,6 @@ def product_detail(product_id):
         d['score'] = row['score']
         similar_products.append(d)
 
-    # 猜你感兴趣推荐
     interest_rows = get_interest_recommendations(product_id, limit=4)
     interest_products = []
     for row in interest_rows:
@@ -247,10 +243,7 @@ def product_detail(product_id):
 
     cursor.close()
     conn.close()
-    return render_template('product/detail.html',
-                           product=product,
-                           recommendations=similar_products,
-                           interest_products=interest_products)
+    return render_template('product/detail.html', product=product, recommendations=similar_products, interest_products=interest_products)
 
 # ---------- 浏览记录 API ----------
 @app.route('/api/browsing/start', methods=['POST'])
@@ -611,35 +604,41 @@ def refund_order(order_id):
     cursor.close()
     conn.close()
     return render_template('order/refund.html', order=order)
-# ---------- 管理员退款审核 ----------
-@app.route('/admin/refund_review/<int:order_id>', methods=['POST'])
+
+# ---------- 管理员退款审核详情 ----------
+@app.route('/admin/refund_detail/<int:order_id>', methods=['GET', 'POST'])
 @role_required('admin')
-def refund_review(order_id):
-    action = request.form.get('action')
-    reason = request.form.get('reason', '')
+def refund_detail(order_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM orders WHERE id = %s AND status = 'refunding'", (order_id,))
+    cursor.execute("SELECT o.*, u.username FROM orders o JOIN users u ON o.user_id = u.id WHERE o.id = %s", (order_id,))
     order = cursor.fetchone()
-    if not order:
-        flash('订单状态异常', 'error')
+    if not order or order['status'] != 'refunding':
+        flash('订单状态异常或不存在', 'error')
         cursor.close()
         conn.close()
         return redirect(url_for('admin_orders'))
 
-    if action == 'approve':
-        cursor.execute("UPDATE orders SET status = 'refunded' WHERE id = %s", (order_id,))
-        flash('退款已批准', 'success')
-    elif action == 'reject':
-        # 恢复到退款前的状态
-        prev = order.get('prev_status') or 'paid'   # 默认回退到已付款（兜底）
-        cursor.execute("UPDATE orders SET status = %s WHERE id = %s", (prev, order_id))
-        log_operation('refund_reject', f'拒绝订单 #{order_id} 退款，原因：{reason}，恢复为 {prev}')
-        flash(f'退款已拒绝，订单恢复为“{prev}”状态', 'warning')
-    conn.commit()
+    if request.method == 'POST':
+        action = request.form.get('action')
+        reject_reason = request.form.get('reject_reason', '')
+        if action == 'approve':
+            cursor.execute("UPDATE orders SET status = 'refunded' WHERE id = %s", (order_id,))
+            flash('退款已批准', 'success')
+        elif action == 'reject':
+            prev = order.get('prev_status') or 'paid'
+            cursor.execute("UPDATE orders SET status = %s WHERE id = %s", (prev, order_id))
+            log_operation('refund_reject', f'拒绝订单 #{order_id} 退款，理由：{reject_reason}，恢复为 {prev}')
+            flash(f'退款已拒绝，订单恢复为“{prev}”状态', 'warning')
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return redirect(url_for('admin_orders'))
+
     cursor.close()
     conn.close()
-    return redirect(url_for('admin_orders'))
+    return render_template('admin/refund_detail.html', order=order)
+
 # ---------- 管理仪表盘 ----------
 @app.route('/admin')
 @login_required
@@ -658,7 +657,6 @@ def admin_dashboard():
     cursor.execute("SELECT SUM(total_amount) as revenue FROM orders WHERE status = 'completed'")
     revenue = float(cursor.fetchone()['revenue'] or 0)
 
-    # 异常检测
     cursor.execute("SELECT COALESCE(SUM(total_amount),0) as revenue FROM orders WHERE DATE(created_at) = CURDATE() AND status = 'completed'")
     today_rev = float(cursor.fetchone()['revenue'])
     cursor.execute("""
@@ -675,10 +673,13 @@ def admin_dashboard():
     conn.close()
     return render_template('admin/dashboard.html', product_count=product_count, order_count=order_count, user_count=user_count, revenue=revenue, anomaly=anomaly)
 
-# ---------- 商品管理（销售/admin）----------
+# ---------- 商品管理 ----------
 @app.route('/admin/products', methods=['GET', 'POST'])
 @role_required('sales', 'admin')
 def admin_products():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
     if request.method == 'POST':
         name = request.form['name']
         description = request.form['description']
@@ -691,53 +692,47 @@ def admin_products():
             if file and allowed_file(file.filename):
                 filename = save_image(file)
                 image_url = f'uploads/products/{filename}'
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
         seller_id = current_user.id if current_user.role == 'sales' else None
         cursor.execute(
             "INSERT INTO products (name, description, price, stock, category, image_url, seller_id, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
             (name, description, price, stock, category, image_url, seller_id, datetime.datetime.now())
         )
         conn.commit()
-        cursor.close()
-        conn.close()
         log_operation('add_product', f'添加商品 {name}')
         flash('商品添加成功', 'success')
         return redirect(url_for('admin_products'))
 
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    # 获取分类列表
+    cursor.execute("SELECT name FROM categories ORDER BY name")
+    categories = [row['name'] for row in cursor.fetchall()]
+
     # 根据角色过滤商品
     if current_user.role == 'admin':
         cursor.execute("SELECT p.*, u.username as seller_name FROM products p LEFT JOIN users u ON p.seller_id = u.id ORDER BY p.created_at DESC")
     else:
-        # 销售人员只看到自己的商品
         cursor.execute("SELECT p.*, u.username as seller_name FROM products p LEFT JOIN users u ON p.seller_id = u.id WHERE p.seller_id = %s ORDER BY p.created_at DESC", (current_user.id,))
     products_rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    # 为每个产品附加 seller_id 和安全标识
     products = []
     for row in products_rows:
         p = dict_to_product(row)
         p['seller_id'] = row.get('seller_id')
         p['seller_name'] = row.get('seller_name', '-')
-        # 当前用户是否可以编辑/删除（管理员或本人）
         p['can_edit'] = (current_user.role == 'admin' or p['seller_id'] == current_user.id)
         products.append(p)
 
-    return render_template('admin/product_manage.html', products=products,
+    cursor.close()
+    conn.close()
+    return render_template('admin/product_manage.html',
+                           products=products,
                            current_user_role=current_user.role,
-                           current_user_id=current_user.id)
+                           current_user_id=current_user.id,
+                           categories=categories)
 
 @app.route('/admin/product/edit/<int:product_id>', methods=['GET', 'POST'])
 @role_required('sales', 'admin')
 def edit_product(product_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-
-    # 获取商品信息
     cursor.execute("SELECT * FROM products WHERE id = %s", (product_id,))
     product_row = cursor.fetchone()
     product = dict_to_product(product_row)
@@ -747,7 +742,6 @@ def edit_product(product_id):
         conn.close()
         return redirect(url_for('admin_products'))
 
-    # 权限检查：管理员或商品负责人
     if current_user.role != 'admin' and product.get('seller_id') != current_user.id:
         flash('没有权限编辑此商品', 'error')
         cursor.close()
@@ -777,9 +771,13 @@ def edit_product(product_id):
         flash('商品更新成功', 'success')
         return redirect(url_for('admin_products'))
 
+    # 获取分类列表用于编辑页面
+    cursor.execute("SELECT name FROM categories ORDER BY name")
+    categories = [row['name'] for row in cursor.fetchall()]
+
     cursor.close()
     conn.close()
-    return render_template('admin/product_edit.html', product=product)
+    return render_template('admin/product_edit.html', product=product, categories=categories)
 
 @app.route('/admin/product/delete/<int:product_id>')
 @role_required('sales', 'admin')
@@ -794,7 +792,6 @@ def delete_product(product_id):
         conn.close()
         return redirect(url_for('admin_products'))
 
-    # 权限检查：管理员或商品负责人
     if current_user.role != 'admin' and product['seller_id'] != current_user.id:
         flash('没有权限删除此商品', 'error')
         cursor.close()
@@ -810,7 +807,50 @@ def delete_product(product_id):
     log_operation('delete_product', f'删除商品 #{product_id}')
     flash('商品删除成功', 'success')
     return redirect(url_for('admin_products'))
-# ---------- 订单管理（销售/admin）----------
+
+# ---------- 分类管理 ----------
+@app.route('/admin/categories', methods=['GET', 'POST'])
+@role_required('sales', 'admin')
+def admin_categories():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    if request.method == 'POST':
+        action = request.form.get('action', 'add')
+        name = request.form.get('name', '').strip()
+        if action == 'add' and name:
+            try:
+                cursor.execute("INSERT INTO categories (name) VALUES (%s)", (name,))
+                conn.commit()
+                log_operation('add_category', f'添加分类 {name}')
+                flash(f'分类 "{name}" 已添加', 'success')
+            except:
+                flash('分类已存在或无效', 'error')
+        elif action == 'delete':
+            cat_id = request.form.get('id', type=int)
+            if cat_id:
+                cursor.execute("SELECT name FROM categories WHERE id = %s", (cat_id,))
+                cat = cursor.fetchone()
+                if cat and cat['name'] != '其他':  # 不能删除“其他”分类
+                    # 该分类下的商品移到“其他”
+                    cursor.execute("UPDATE products SET category = '其他' WHERE category = %s", (cat['name'],))
+                    # 删除分类
+                    cursor.execute("DELETE FROM categories WHERE id = %s", (cat_id,))
+                    conn.commit()
+                    log_operation('delete_category', f'删除分类 {cat["name"]}，商品转移到其他')
+                    flash(f'分类 "{cat["name"]}" 已删除，商品已移至“其他”', 'success')
+                else:
+                    flash('不能删除“其他”分类', 'error')
+        return redirect(url_for('admin_categories'))
+
+    # GET 显示分类列表
+    cursor.execute("SELECT id, name FROM categories ORDER BY name")
+    categories = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return render_template('admin/category_manage.html', categories=categories)
+
+# ---------- 订单管理 ----------
 @app.route('/admin/orders')
 @role_required('sales', 'admin')
 def admin_orders():
@@ -845,40 +885,6 @@ def admin_orders():
             'username': row['username']
         })
     return render_template('admin/order_manage.html', orders=orders, status=status)
-
-@app.route('/admin/refund_detail/<int:order_id>', methods=['GET', 'POST'])
-@role_required('admin')
-def refund_detail(order_id):
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT o.*, u.username FROM orders o JOIN users u ON o.user_id = u.id WHERE o.id = %s", (order_id,))
-    order = cursor.fetchone()
-    if not order or order['status'] != 'refunding':
-        flash('订单状态异常或不存在', 'error')
-        cursor.close()
-        conn.close()
-        return redirect(url_for('admin_orders'))
-
-    if request.method == 'POST':
-        action = request.form.get('action')
-        reject_reason = request.form.get('reject_reason', '')
-        if action == 'approve':
-            cursor.execute("UPDATE orders SET status = 'refunded' WHERE id = %s", (order_id,))
-            flash('退款已批准', 'success')
-        elif action == 'reject':
-            prev = order.get('prev_status') or 'paid'
-            cursor.execute("UPDATE orders SET status = %s WHERE id = %s", (prev, order_id))
-            log_operation('refund_reject', f'拒绝订单 #{order_id} 退款，理由：{reject_reason}，恢复为 {prev}')
-            flash(f'退款已拒绝，订单恢复为“{prev}”状态', 'warning')
-        conn.commit()
-        cursor.close()
-        conn.close()
-        return redirect(url_for('admin_orders'))
-
-    # GET：显示退款详情
-    cursor.close()
-    conn.close()
-    return render_template('admin/refund_detail.html', order=order)
 
 @app.route('/admin/order/update_status', methods=['POST'])
 @role_required('sales', 'admin')
@@ -945,7 +951,7 @@ def admin_stats():
     conn.close()
     return render_template('admin/stats.html', sales_data=sales_data, popular_products=popular_products, chart_dates=chart_dates, chart_revenues=chart_revenues, chart_orders=chart_orders)
 
-# ---------- 用户管理（仅管理员）----------
+# ---------- 用户管理 ----------
 @app.route('/admin/users')
 @role_required('admin')
 def admin_users():
@@ -1002,7 +1008,7 @@ def reset_password(user_id):
     flash('密码重置成功', 'success')
     return redirect(url_for('admin_users'))
 
-# ---------- 销售业绩（按商品归属）----------
+# ---------- 销售业绩 ----------
 @app.route('/admin/sales_performance')
 @role_required('admin')
 def sales_performance():
