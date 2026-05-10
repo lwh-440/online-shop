@@ -92,6 +92,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     let logId = null;
     let productId = {{ product.id }};
+
+    // 开始浏览记录
     fetch('/api/browsing/start', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -105,14 +107,21 @@ document.addEventListener('DOMContentLoaded', function() {
     })
     .catch(err => console.error('浏览开始记录失败:', err));
 
-    window.addEventListener('beforeunload', function() {
+    // 页面关闭或导航离开时记录结束时间（使用 sendBeacon 保证可靠发送）
+    function endBrowsing() {
         if (logId) {
-            fetch('/api/browsing/end', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ log_id: logId }),
-                keepalive: true
-            });
+            const data = JSON.stringify({ log_id: logId });
+            const blob = new Blob([data], { type: 'application/json' });
+            navigator.sendBeacon('/api/browsing/end', blob);
+        }
+    }
+
+    window.addEventListener('beforeunload', endBrowsing);
+    window.addEventListener('pagehide', endBrowsing);
+    // 对于单页应用或有缓存的情况，也可以监听 visibilitychange 作为后备
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden') {
+            endBrowsing();
         }
     });
 });
